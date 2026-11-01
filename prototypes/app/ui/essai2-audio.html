@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Essai 2 — Deux sorties son</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><a href="index.html">← Essais</a><h1>2 · Deux sorties son</h1></header>
+<main>
+  <section class="panel">
+    <h2>Ce que l'essai vérifie</h2>
+    <p>Pour les fichiers locaux, la console doit envoyer la musique aux enceintes et la pré-écoute au casque, en même temps, sur deux sorties différentes. L'essai ouvre les deux sorties et joue un son d'essai sur chacune : <b>grave (440 Hz) sur la sortie principale</b>, <b>aigu (880 Hz) sur le casque</b>.</p>
+    <div class="note">Baissez le volume avant de lancer. Idéal : une carte son à 4 sorties (ex. Focusrite 2i2 : sorties 1-2 et 3-4), ou les haut-parleurs de l'ordinateur + un casque USB ou Bluetooth.</div>
+  </section>
+  <section class="panel">
+    <h2>Réglage</h2>
+    <div class="row"><label>Sortie principale <select id="main"></select></label></div>
+    <div class="row"><label>Casque <select id="phones"></select></label></div>
+    <div class="row"><label>Taille de tampon demandée <select id="buffer"><option>128</option><option selected>256</option><option>512</option><option>1024</option></select></label>
+      <button class="solid" id="start">Lancer les deux sons</button><button id="stop">Arrêter</button><button id="refresh">Actualiser la liste</button></div>
+    <table><thead><tr><th>Sortie</th><th>Périphérique</th><th>Fréquence</th><th>Tampon</th><th>Latence estimée</th><th>Rappels</th><th>Erreurs</th></tr></thead><tbody id="streams"></tbody></table>
+  </section>
+  <section class="panel">
+    <h2>Ce que vous entendez</h2>
+    <p>Notez-le avec le rapport : le grave sort-il seulement des enceintes ? L'aigu seulement du casque ? Des craquements ? Essayez aussi 128 puis 1024.</p>
+    <div class="row">
+      <label><input type="checkbox" id="heardMain"> Grave dans les enceintes</label>
+      <label><input type="checkbox" id="heardPhones"> Aigu dans le casque</label>
+      <label><input type="checkbox" id="crackles"> Craquements</label>
+    </div>
+  </section>
+  <div id="notice"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+let devices = [], poll = null, lastReports = [];
+async function refresh() {
+  try { devices = await call('audio_devices'); } catch (e) { $('#notice').replaceChildren(el('p', { class: 'err' }, e.message || String(e))); return; }
+  report.resultats.peripheriques = devices;
+  for (const id of ['main', 'phones']) {
+    const s = $('#' + id); s.innerHTML = '';
+    s.append(el('option', { value: '' }, 'Sortie par défaut du système'));
+    devices.forEach(d => s.append(el('option', { value: d.name }, `${d.name} · ${d.max_channels} can. · ${d.sample_rates.join('/') || '?'} Hz${d.buffer_min ? ` · tampon ${d.buffer_min}–${d.buffer_max}` : ''}`)));
+  }
+  if (devices.length > 1) $('#phones').value = devices.find(d => !d.is_default)?.name || '';
+  renderReport();
+}
+function row(label, r, s) {
+  return el('tr', null, el('td', { class: 'ok' }, label), el('td', null, r.error ? el('span', { class: 'err' }, r.error) : r.device || 'par défaut'),
+    el('td', null, r.sample_rate ? r.sample_rate + ' Hz' : '—'), el('td', null, r.buffer_mode || '—'),
+    el('td', { class: s && s.latency_ms != null ? 'ok' : '' }, s ? `${fmt(s.latency_ms)} ms (max ${fmt(s.max_latency_ms)})` : '—'),
+    el('td', null, s ? s.callbacks : '—'), el('td', null, s ? s.errors : '—'));
+}
+function draw(stats) {
+  $('#streams').replaceChildren(row('Principale (440 Hz)', lastReports[0] || {}, stats && stats.main), row('Casque (880 Hz)', lastReports[1] || {}, stats && stats.phones));
+}
+async function start() {
+  try {
+    lastReports = await call('audio_start', { main: $('#main').value, phones: $('#phones').value, buffer: +$('#buffer').value });
+    report.resultats.essais = report.resultats.essais || [];
+    const run = { tampon_demande: +$('#buffer').value, sorties: lastReports };
+    report.resultats.essais.push(run);
+    draw(null);
+    clearInterval(poll);
+    poll = setInterval(async () => { const s = await call('audio_stats'); if (s) { draw(s); run.mesures = s; renderReport(); } }, 500);
+  } catch (e) { $('#notice').replaceChildren(el('p', { class: 'err' }, String(e))); }
+}
+async function stop() { clearInterval(poll); try { await call('audio_stop'); } catch (e) {} }
+function ear() { report.resultats.ecoute = { grave_enceintes: $('#heardMain').checked, aigu_casque: $('#heardPhones').checked, craquements: $('#crackles').checked }; renderReport(); }
+window.addEventListener('DOMContentLoaded', () => {
+  const n = appOnlyNotice(); if (n) $('#notice').append(n);
+  $('#start').onclick = start; $('#stop').onclick = stop; $('#refresh').onclick = refresh;
+  ['heardMain', 'heardPhones', 'crackles'].forEach(id => $('#' + id).onchange = ear);
+  document.querySelector('main').append(reportPanel());
+  draw(null);
+  if (IN_APP) refresh();
+});
+window.addEventListener('beforeunload', stop);
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Lems VJ Player — essais</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><h1>Lems VJ Player — essais</h1><span id="env" class="mono" style="margin-left:auto;color:var(--ink-muted)"></span></header>
+<main>
+  <p>Cinq essais pour vérifier, sur vos appareils, ce qui pourrait bloquer l'application. Chaque essai produit un rapport à copier et à me renvoyer.</p>
+  <div class="cards">
+    <a class="card" href="essai1-youtube.html"><b>1 · Quatre lecteurs YouTube</b><span>Chargement, vitesses possibles, précision de la position, mémoire.</span></a>
+    <a class="card" href="essai2-audio.html"><b>2 · Deux sorties son</b><span>Enceintes et casque en même temps, latence réelle.</span></a>
+    <a class="card" href="essai3-reseau.html"><b>3 · Découverte et appairage</b><span>Trouver la console sur le Wi-Fi, code à 6 chiffres, aller-retour.</span></a>
+    <a class="card" href="essai4-ecran.html"><b>4 · Deuxième écran</b><span>Fenêtre de sortie plein écran sur le projecteur.</span></a>
+    <a class="card" href="essai5-synchro.html"><b>5 · Écran synchronisé</b><span>Un deuxième appareil calé sur l'horloge de la console.</span></a>
+  </div>
+  <div id="notice"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded', async () => {
+  const n = appOnlyNotice(); if (n) $('#notice').append(n);
+  if (IN_APP) { try { const p = await call('platform_info'); $('#env').textContent = `${p.os} · ${p.arch} · v${p.app_version}`; } catch (e) {} }
+  else $('#env').textContent = 'navigateur';
+});
+</script>
+</body>
+</html>

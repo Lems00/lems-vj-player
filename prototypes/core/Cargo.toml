@@ -1,0 +1,25 @@
+[package]
+name = "lems-core"
+version = "0.1.0"
+edition = "2021"
+description = "Lems VJ Player — cœur commun des prototypes : protocole, appairage, chiffrement, horloge, réseau local."
+publish = false
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rand = "0.8"
+sha2 = "0.10"
+hkdf = "0.12"
+hmac = "0.12"
+spake2 = "0.4"
+chacha20poly1305 = "0.10"
+thiserror = "1.0"
+tokio = { version = "1.40", features = ["rt-multi-thread", "macros", "net", "sync", "time"], optional = true }
+tokio-tungstenite = { version = "0.24", optional = true }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"], optional = true }
+mdns-sd = { version = "0.11", optional = true }
+
+[features]
+default = ["net"]
+net = ["dep:tokio", "dep:tokio-tungstenite", "dep:futures-util", "dep:mdns-sd"]

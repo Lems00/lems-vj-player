@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Essai 1 — Quatre lecteurs YouTube</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><a href="index.html">← Essais</a><h1>1 · Quatre lecteurs YouTube</h1></header>
+<main>
+  <section class="panel">
+    <h2>Ce que l'essai vérifie</h2>
+    <p>Quatre lecteurs officiels en même temps, dans la fenêtre de l'application : se chargent-ils, quelles vitesses proposent-ils (la synchronisation des tempos en dépend), avec quelle précision donnent-ils la position, combien de mémoire prennent-ils ? On compare aussi deux origines de page, car YouTube peut refuser de s'afficher selon l'adresse de la page.</p>
+    <div class="row">
+      <span class="mono" id="origin"></span>
+      <button id="httpVariant" hidden>Rouvrir cette page en http://localhost (variante B)</button>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Vidéos</h2>
+    <p>Quatre identifiants de vidéos YouTube (par défaut, des films libres de la fondation Blender). Remplacez-les si l'une est indisponible dans votre pays.</p>
+    <div class="row" id="ids"></div>
+    <div class="row">
+      <button class="solid" id="load">1. Charger les 4 lecteurs</button>
+      <button id="playAll" disabled>2. Tout lancer</button>
+      <button id="measure" disabled>3. Lancer les mesures (20 s)</button>
+      <button id="pauseAll" disabled>Tout arrêter</button>
+    </div>
+    <div class="grid4" id="players"></div>
+  </section>
+  <section class="panel">
+    <h2>Résultats</h2>
+    <table><thead><tr><th>Lecteur</th><th>Chargement</th><th>Vitesses proposées</th><th>Vitesse 1,05× acceptée ?</th><th>Précision position</th><th>Dérive sur 10 s</th><th>Saut (seek)</th></tr></thead><tbody id="results"></tbody></table>
+    <p id="memory"></p>
+    <p id="verdict" class="verdict" hidden></p>
+  </section>
+</main>
+<script src="shared.js"></script>
+<script>
+const DEFAULT_IDS = ['aqz-KE-bpKQ', 'eRsGyueVLvQ', 'R6MlUcmOul8', 'WhWc3b3KhnY'];
+const DECKS = ['A', 'B', 'C', 'D'];
+const players = [], meta = [];
+let apiReady = null;
+
+function loadApi() {
+  if (apiReady) return apiReady;
+  apiReady = new Promise((resolve, reject) => {
+    if (window.YT && window.YT.Player) return resolve();
+    window.onYouTubeIframeAPIReady = () => resolve();
+    const s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    s.onerror = () => reject(new Error("Impossible de charger l'API YouTube (réseau ou blocage)."));
+    document.head.append(s);
+    setTimeout(() => reject(new Error("L'API YouTube ne répond pas après 15 s.")), 15000);
+  });
+  return apiReady;
+}
+
+function rowFor(i) { return document.getElementById('res-' + i); }
+function setCell(i, col, text, ok) { const td = rowFor(i).children[col]; td.textContent = text; td.className = ok ? 'ok' : ''; }
+
+async function loadPlayers() {
+  $('#load').disabled = true;
+  report.resultats.lecteurs = [];
+  try { await loadApi(); } catch (e) { $('#players').append(el('p', { class: 'err' }, e.message)); report.resultats.erreur_api = e.message; renderReport(); $('#load').disabled = false; return; }
+  const ids = [...document.querySelectorAll('#ids input')].map(i => i.value.trim());
+  $('#players').innerHTML = ''; $('#results').innerHTML = '';
+  ids.forEach((id, i) => {
+    // 356 × 200 : YouTube exige un lecteur d'au moins 200 × 200 px.
+    $('#players').append(el('div', null, el('h3', null, 'Platine ' + DECKS[i]), el('div', { id: 'p' + i })));
+    $('#results').append(el('tr', { id: 'res-' + i }, el('td', { class: 'ok' }, DECKS[i] + ' · ' + id), ...Array.from({ length: 6 }, () => el('td', null, '…'))));
+    meta[i] = { id, created: performance.now(), ready: null, errors: [] };
+    report.resultats.lecteurs[i] = { platine: DECKS[i], video: id };
+    players[i] = new YT.Player('p' + i, {
+      width: 356, height: 200, videoId: id,
+      playerVars: { playsinline: 1, rel: 0, origin: location.origin },
+      events: {
+        onReady: () => {
+          meta[i].ready = performance.now();
+          const ms = meta[i].ready - meta[i].created;
+          report.resultats.lecteurs[i].chargement_ms = Math.round(ms);
+          const rates = players[i].getAvailablePlaybackRates();
+          report.resultats.lecteurs[i].vitesses = rates;
+          setCell(i, 1, Math.round(ms) + ' ms', true);
+          setCell(i, 2, rates.join(' · '), true);
+          renderReport();
+          if (meta.every(m => m && m.ready)) { $('#playAll').disabled = false; $('#pauseAll').disabled = false; }
+        },
+        onError: (e) => {
+          const codes = { 2: 'identifiant invalide', 5: 'erreur du lecteur HTML5', 100: 'vidéo introuvable ou privée', 101: 'intégration refusée par l’auteur', 150: 'intégration refusée par l’auteur', 153: 'configuration refusée (origine ou référent de la page)' };
+          const msg = 'erreur ' + e.data + ' : ' + (codes[e.data] || 'inconnue');
+          meta[i].errors.push(e.data);
+          report.resultats.lecteurs[i].erreurs = meta[i].errors;
+          setCell(i, 1, msg, false);
+          renderReport();
+        }
+      }
+    });
+  });
+}
+
+function playAll() { players.forEach(p => p && p.playVideo && p.playVideo()); $('#measure').disabled = false; }
+function pauseAll() { players.forEach(p => p && p.pauseVideo && p.pauseVideo()); }
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function measureRate(i) {
+  const p = players[i];
+  p.setPlaybackRate(1.05);
+  await sleep(1200);
+  const got = p.getPlaybackRate();
+  p.setPlaybackRate(1);
+  const ok = Math.abs(got - 1.05) < 0.001;
+  report.resultats.lecteurs[i].vitesse_1_05_obtenue = got;
+  setCell(i, 3, ok ? 'oui (1,05×)' : 'non : ' + got + '×', ok);
+  return ok;
+}
+
+async function measurePosition(i, seconds) {
+  const p = players[i];
+  const samples = [];
+  const t0 = performance.now();
+  while (performance.now() - t0 < seconds * 1000) {
+    samples.push({ t: performance.now(), pos: p.getCurrentTime() });
+    await sleep(100);
+  }
+  const errs = [], steps = [];
+  for (let k = 1; k < samples.length; k++) {
+    const dt = (samples[k].t - samples[k - 1].t) / 1000, dp = samples[k].pos - samples[k - 1].pos;
+    if (dp > 0) steps.push(dp);
+    errs.push((dp - dt) * 1000);
+  }
+  const first = samples[0], last = samples[samples.length - 1];
+  const drift = ((last.pos - first.pos) - (last.t - first.t) / 1000) * 1000;
+  const jitter = stddev(errs);
+  const grain = steps.length ? Math.min(...steps) * 1000 : null;
+  Object.assign(report.resultats.lecteurs[i], { precision_ecart_type_ms: jitter && +jitter.toFixed(1), pas_minimal_ms: grain && +grain.toFixed(1), derive_ms: +drift.toFixed(1), mesures: samples.length });
+  setCell(i, 4, `écart-type ${fmt(jitter)} ms · pas ${fmt(grain)} ms`, jitter != null && jitter < 30);
+  setCell(i, 5, fmt(drift) + ' ms', Math.abs(drift) < 100);
+}
+
+async function measureSeek(i) {
+  const p = players[i];
+  const target = Math.min(60, (p.getDuration() || 120) / 2);
+  const t0 = performance.now();
+  p.seekTo(target, true);
+  while (performance.now() - t0 < 8000) {
+    if (Math.abs(p.getCurrentTime() - target) < 0.3 && p.getPlayerState() === YT.PlayerState.PLAYING) break;
+    await sleep(25);
+  }
+  const ms = performance.now() - t0;
+  report.resultats.lecteurs[i].saut_ms = Math.round(ms);
+  setCell(i, 6, Math.round(ms) + ' ms', ms < 1500);
+}
+
+async function measureAll() {
+  $('#measure').disabled = true;
+  const rateOk = [];
+  for (let i = 0; i < players.length; i++) rateOk.push(await measureRate(i));
+  await Promise.all(players.map((_, i) => measurePosition(i, 10)));
+  for (let i = 0; i < players.length; i++) await measureSeek(i);
+  if (performance.memory) {
+    const mb = performance.memory.usedJSHeapSize / 1048576;
+    report.resultats.memoire_js_mo = +mb.toFixed(1);
+    $('#memory').textContent = 'Mémoire JavaScript utilisée : ' + mb.toFixed(1) + ' Mo (indicatif, sans la vidéo elle-même).';
+  } else $('#memory').textContent = "Mémoire : non mesurable dans ce moteur (Safari / macOS). Regardez le Moniteur d'activité.";
+  const sync = rateOk.every(Boolean);
+  report.resultats.verdict_sync = sync ? 'vitesse fine possible : SYNC envisageable' : 'vitesses par paliers : pas de SYNC sur YouTube';
+  $('#verdict').hidden = false; $('#verdict').textContent = report.resultats.verdict_sync;
+  renderReport();
+  $('#measure').disabled = false;
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  $('#origin').textContent = 'Origine de cette page : ' + location.origin;
+  DEFAULT_IDS.forEach((id, i) => $('#ids').append(el('input', { class: 'mono', value: id, 'aria-label': 'Vidéo platine ' + DECKS[i], size: 14 })));
+  $('#load').onclick = loadPlayers; $('#playAll').onclick = playAll; $('#pauseAll').onclick = pauseAll; $('#measure').onclick = measureAll;
+  if (IN_APP && !location.origin.startsWith('http://localhost')) { $('#httpVariant').hidden = false; $('#httpVariant').onclick = () => call('open_http_page', { page: 'essai1-youtube.html' }); }
+  document.querySelector('main').append(reportPanel());
+});
+</script>
+</body>
+</html>

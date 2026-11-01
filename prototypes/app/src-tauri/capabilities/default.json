@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Fenêtres de l'application d'essai : accès aux commandes des essais.",
+  "windows": ["main", "sortie"],
+  "permissions": ["core:default"]
+}

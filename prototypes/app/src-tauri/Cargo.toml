@@ -1,0 +1,22 @@
+[package]
+name = "lems-essais"
+version = "0.1.0"
+edition = "2021"
+description = "Lems VJ Player — application d'essai (étape 2 du plan)"
+publish = false
+
+[lib]
+name = "lems_essais_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.3", features = [] }
+tauri-plugin-localhost = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.40", features = ["sync", "time"] }
+cpal = "0.15"
+lems-core = { path = "../../core" }

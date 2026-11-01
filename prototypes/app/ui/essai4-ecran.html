@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Essai 4 — Deuxième écran</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><a href="index.html">← Essais</a><h1>4 · Deuxième écran</h1></header>
+<main>
+  <section class="panel">
+    <h2>Ce que l'essai vérifie</h2>
+    <p>Branchez un deuxième écran ou un vidéoprojecteur (en mode « écran étendu », pas « recopie »). L'essai liste les écrans, puis ouvre la fenêtre de sortie en plein écran sur celui choisi. Elle affiche une mire : grille, couleurs des platines, horloge et résolution réelle.</p>
+    <div class="note">Sur Android, l'application ne voit qu'un écran : un écran HDMI ou USB-C y sera en simple recopie. Une vraie sortie séparée demandera un module natif Android (prévu après les essais).</div>
+  </section>
+  <section class="panel">
+    <h2>Écrans détectés</h2>
+    <table><thead><tr><th></th><th>Nom</th><th>Taille</th><th>Position</th><th>Échelle</th><th>Principal</th></tr></thead><tbody id="monitors"></tbody></table>
+    <div class="row"><label><input type="checkbox" id="fs" checked> Plein écran</label>
+      <button class="solid" id="open">Ouvrir la sortie sur l'écran choisi</button><button id="close">Fermer la sortie</button><button id="list">Actualiser</button></div>
+    <p id="state"></p>
+  </section>
+  <section class="panel">
+    <h2>Ce que vous voyez</h2>
+    <div class="row">
+      <label><input type="checkbox" id="onRight"> La mire est sur le bon écran</label>
+      <label><input type="checkbox" id="covers"> Elle couvre tout l'écran, sans barre ni bord</label>
+      <label><input type="checkbox" id="sharp"> L'image est nette (résolution native)</label>
+      <label><input type="checkbox" id="mainOk"> La console reste utilisable sur l'écran principal</label>
+    </div>
+  </section>
+  <div id="notice"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+async function list() {
+  try {
+    const ms = await call('list_monitors');
+    report.resultats.ecrans = ms;
+    $('#monitors').replaceChildren(...ms.map(m => el('tr', null,
+      el('td', null, el('input', { type: 'radio', name: 'mon', value: m.index, 'aria-label': m.name, ...(m.is_primary ? {} : { checked: '' }) })),
+      el('td', { class: 'ok' }, m.name), el('td', null, `${m.width} × ${m.height}`), el('td', null, `${m.x}, ${m.y}`), el('td', null, m.scale), el('td', null, m.is_primary ? 'oui' : 'non'))));
+    if (!document.querySelector('input[name=mon]:checked') && ms.length) document.querySelector('input[name=mon]').checked = true;
+    $('#state').textContent = ms.length < 2 ? 'Un seul écran détecté : branchez un deuxième écran en mode étendu, puis Actualiser.' : ms.length + ' écrans détectés.';
+  } catch (e) { $('#state').replaceChildren(el('span', { class: 'err' }, String(e))); }
+  renderReport();
+}
+async function open() {
+  const sel = document.querySelector('input[name=mon]:checked'); if (!sel) return;
+  try {
+    const r = await call('open_output', { index: +sel.value, fullscreen: $('#fs').checked });
+    report.resultats.ouverture = r;
+    $('#state').textContent = `Fenêtre ouverte en ${r.opened_ms} ms · sur l'écran demandé : ${r.on_requested_monitor === null ? 'inconnu' : r.on_requested_monitor ? 'oui' : 'non'} · plein écran : ${r.fullscreen ? 'oui' : 'non'}`;
+  } catch (e) { $('#state').replaceChildren(el('span', { class: 'err' }, String(e))); }
+  renderReport();
+}
+function seen() { report.resultats.constat = { bon_ecran: $('#onRight').checked, plein_ecran_propre: $('#covers').checked, net: $('#sharp').checked, console_utilisable: $('#mainOk').checked }; renderReport(); }
+window.addEventListener('DOMContentLoaded', () => {
+  const n = appOnlyNotice(); if (n) $('#notice').append(n);
+  $('#list').onclick = list; $('#open').onclick = open; $('#close').onclick = () => call('close_output');
+  ['onRight', 'covers', 'sharp', 'mainOk'].forEach(id => $('#' + id).onchange = seen);
+  document.querySelector('main').append(reportPanel());
+  if (IN_APP) list();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+target/
+node_modules/
+prototypes/app/src-tauri/gen/
+prototypes/app/src-tauri/target/
+*.apk
+*.dmg
+*.msi
+.DS_Store

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Essai 3 — Découverte et appairage</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><a href="index.html">← Essais</a><h1>3 · Découverte et appairage</h1></header>
+<main>
+  <section class="panel">
+    <h2>Ce que l'essai vérifie</h2>
+    <p>Deux appareils sur le même Wi-Fi : l'un fait la console (Mac ou PC), l'autre s'y connecte (Android, ou un autre ordinateur). On mesure le temps pour trouver la console, le temps d'appairage, l'aller-retour réseau et l'écart d'horloge. Les échanges sont chiffrés, le code n'est jamais envoyé.</p>
+    <div class="row"><label>Nom de cet appareil <input id="name" size="28"></label></div>
+    <div class="row"><button class="solid" id="asConsole">Cet appareil est la console</button><button id="asDevice">Cet appareil se connecte à une console</button></div>
+  </section>
+
+  <section class="panel" id="consolePanel" hidden>
+    <h2>Console</h2>
+    <div class="row"><span>Code à saisir sur l'autre appareil :</span><span class="big" id="code">——————</span><button id="newCode">Nouveau code</button></div>
+    <p id="consoleState"></p>
+    <table><thead><tr><th>Appareil</th><th>Rôle</th><th>Adresse</th><th>État</th><th>Aller-retour</th><th>Écart d'horloge</th></tr></thead><tbody id="peers"></tbody></table>
+    <div class="row"><button id="ping">Envoyer un message à tous</button></div>
+    <pre id="consoleLog"></pre>
+  </section>
+
+  <section class="panel" id="devicePanel" hidden>
+    <h2>Connexion à une console</h2>
+    <div class="row"><button class="solid" id="discover">Chercher les consoles (4 s)</button><span id="discoverState"></span></div>
+    <div id="found" class="row"></div>
+    <div class="row"><label>Adresse <input id="url" class="mono" size="28" placeholder="ws://192.168.1.20:48700"></label>
+      <label>Code <input id="pin" class="mono" size="8" maxlength="6" inputmode="numeric" placeholder="482913"></label>
+      <label>Rôle <select id="role"><option value="controller">Contrôleur</option><option value="screen">Écran</option><option value="library">Bibliothèque</option></select></label>
+      <button class="solid" id="connect">Se connecter</button></div>
+    <p id="deviceState"></p>
+    <div class="row"><button id="sendVolume" disabled>Envoyer « volume B à 60 % » à la console</button></div>
+    <pre id="deviceLog"></pre>
+  </section>
+  <div id="notice"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+let consoleTimer = null, deviceTimer = null;
+function log(id, line) { const p = $('#' + id); p.textContent = (new Date().toLocaleTimeString() + '  ' + line + '\n' + p.textContent).slice(0, 6000); }
+
+async function asConsole() {
+  $('#consolePanel').hidden = false; $('#devicePanel').hidden = true;
+  const t0 = performance.now();
+  try {
+    const info = await call('console_start', { name: $('#name').value });
+    report.resultats.role = 'console';
+    report.resultats.console = { port: info.port, annonce_wifi: info.advertised, erreur_annonce: info.advertise_error, demarrage_ms: Math.round(performance.now() - t0) };
+    $('#consoleState').textContent = `À l'écoute sur le port ${info.port}. ` + (info.advertised ? 'Annoncée sur le Wi-Fi.' : 'Annonce Wi-Fi impossible : ' + info.advertise_error);
+    clearInterval(consoleTimer);
+    consoleTimer = setInterval(refreshConsole, 1000);
+    refreshConsole();
+  } catch (e) { $('#consoleState').replaceChildren(el('span', { class: 'err' }, String(e))); }
+}
+async function refreshConsole() {
+  const info = await call('console_info'); if (!info) return;
+  $('#code').textContent = info.code.slice(0, 3) + ' ' + info.code.slice(3);
+  $('#peers').replaceChildren(...info.peers.map(p => el('tr', null, el('td', { class: 'ok' }, p.name), el('td', null, p.role), el('td', { class: 'mono' }, p.addr),
+    el('td', null, p.connected ? 'connecté' : 'déconnecté'), el('td', null, fmt(p.rtt_ms) + ' ms'), el('td', null, fmt(p.offset_ms) + ' ms'))));
+  report.resultats.appareils = info.peers;
+  for (const m of await call('console_messages')) log('consoleLog', 'reçu de l’appareil ' + m.peer + ' : ' + JSON.stringify(m));
+  renderReport();
+}
+async function sendAll() {
+  await call('console_broadcast', { message: JSON.stringify({ type: 'status', text: 'Bonjour de la console à ' + new Date().toLocaleTimeString() }) });
+  log('consoleLog', 'message envoyé à tous les appareils');
+}
+
+function asDevice() { $('#devicePanel').hidden = false; $('#consolePanel').hidden = true; report.resultats.role = 'appareil'; }
+async function discover() {
+  $('#discoverState').textContent = 'Recherche…'; $('#found').innerHTML = '';
+  const t0 = performance.now();
+  try {
+    const list = await call('discover', { timeoutMs: 4000 });
+    report.resultats.decouverte = { consoles: list, duree_ms: Math.round(performance.now() - t0) };
+    $('#discoverState').textContent = list.length ? list.length + ' console(s) trouvée(s).' : 'Aucune console trouvée. Même Wi-Fi ? Saisissez l’adresse affichée sur la console.';
+    list.forEach(c => $('#found').append(el('button', { onclick: () => { $('#url').value = c.url || ''; $('#pin').focus(); } }, `${c.name} · ${(c.addresses || []).join(', ')} : ${c.port}`)));
+    if (list.length === 1) $('#url').value = list[0].url || '';
+  } catch (e) { $('#discoverState').replaceChildren(el('span', { class: 'err' }, String(e))); }
+  renderReport();
+}
+// L'adresse renvoyée par la recherche contient déjà ws:// ; FoundConsole.url est calculé côté Rust.
+async function connect() {
+  const t0 = performance.now();
+  $('#deviceState').textContent = 'Appairage…';
+  try {
+    const consoleName = await call('device_connect', { url: $('#url').value.trim(), code: $('#pin').value.trim(), name: $('#name').value, role: $('#role').value });
+    const ms = Math.round(performance.now() - t0);
+    report.resultats.appairage = { console: consoleName, duree_ms: ms, resultat: 'accepté' };
+    $('#deviceState').textContent = `Connecté à « ${consoleName} » en ${ms} ms.`;
+    $('#sendVolume').disabled = false;
+    clearInterval(deviceTimer);
+    deviceTimer = setInterval(refreshDevice, 1000);
+  } catch (e) {
+    report.resultats.appairage = { duree_ms: Math.round(performance.now() - t0), resultat: String(e) };
+    $('#deviceState').replaceChildren(el('span', { class: 'err' }, String(e)));
+  }
+  renderReport();
+}
+async function refreshDevice() {
+  const s = await call('device_status'); if (!s) return;
+  $('#deviceState').textContent = `Connecté à « ${s.console} » · aller-retour ${fmt(s.rtt_ms)} ms · écart d'horloge ${fmt(s.offset_ms)} ms · ${s.samples} mesures`;
+  report.resultats.mesures = s;
+  for (const m of await call('device_messages')) log('deviceLog', 'reçu : ' + JSON.stringify(m));
+  renderReport();
+}
+async function sendVolume() { await call('device_send', { message: JSON.stringify({ type: 'volume', deck: 'b', value: 0.6 }) }); log('deviceLog', 'envoyé : volume B 0.6'); }
+
+window.addEventListener('DOMContentLoaded', () => {
+  const n = appOnlyNotice(); if (n) $('#notice').append(n);
+  $('#name').value = (navigator.userAgent.includes('Android') ? 'Android' : navigator.platform || 'Ordinateur') + ' de test';
+  $('#asConsole').onclick = asConsole; $('#asDevice').onclick = asDevice; $('#newCode').onclick = () => call('console_new_code').then(refreshConsole);
+  $('#ping').onclick = sendAll; $('#discover').onclick = discover; $('#connect').onclick = connect; $('#sendVolume').onclick = sendVolume;
+  document.querySelector('main').append(reportPanel());
+});
+</script>
+</body>
+</html>
