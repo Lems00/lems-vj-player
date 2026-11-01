@@ -70,18 +70,55 @@ fn find_device(host: &cpal::Host, name: &str) -> Option<cpal::Device> {
     host.output_devices().ok()?.find(|d| d.name().map(|n| n == name).unwrap_or(false))
 }
 
+/// Ce que le système dit d'un appareil son, erreurs comprises (diagnostic).
+#[derive(Serialize, Clone)]
+pub struct InventoryEntry {
+    pub name: String,
+    pub default_output: bool,
+    pub output: String,
+    pub input: String,
+}
+
+fn describe(r: Result<usize, String>) -> String {
+    match r {
+        Ok(0) => "aucune configuration".into(),
+        Ok(n) => format!("{n} configuration(s)"),
+        Err(e) => format!("erreur : {e}"),
+    }
+}
+
+/// Tous les appareils vus par le système, avec la raison s'ils sont écartés.
+#[tauri::command]
+pub fn audio_inventory() -> Result<Vec<InventoryEntry>, String> {
+    let host = cpal::default_host();
+    let default_name = host.default_output_device().and_then(|d| d.name().ok()).unwrap_or_default();
+    let mut out = vec![];
+    for d in host.devices().map_err(|e| e.to_string())? {
+        let name = d.name().unwrap_or_else(|e| format!("? ({e})"));
+        let output = describe(d.supported_output_configs().map(|c| c.count()).map_err(|e| e.to_string()));
+        let input = describe(d.supported_input_configs().map(|c| c.count()).map_err(|e| e.to_string()));
+        out.push(InventoryEntry { default_output: name == default_name, name, output, input });
+    }
+    Ok(out)
+}
+
 #[tauri::command]
 pub fn audio_devices() -> Result<Vec<DeviceInfo>, String> {
     let host = cpal::default_host();
     let default_name = host.default_output_device().and_then(|d| d.name().ok()).unwrap_or_default();
     let mut out = vec![];
-    for d in host.output_devices().map_err(|e| e.to_string())? {
+    // On parcourt tous les appareils, pas seulement ceux que la bibliothèque
+    // classe en sortie : un appareil dont la liste de configurations échoue
+    // mais qui a une configuration par défaut reste proposé.
+    for d in host.devices().map_err(|e| e.to_string())? {
         let name = d.name().unwrap_or_else(|_| "?".into());
         let mut rates = vec![];
         let mut max_ch = 0;
         let (mut bmin, mut bmax) = (None, None);
+        let mut usable = false;
         if let Ok(cfgs) = d.supported_output_configs() {
             for c in cfgs {
+                usable = true;
                 max_ch = max_ch.max(c.channels());
                 for r in [44_100u32, 48_000, 88_200, 96_000] {
                     if c.min_sample_rate().0 <= r && r <= c.max_sample_rate().0 && !rates.contains(&r) {
@@ -93,6 +130,16 @@ pub fn audio_devices() -> Result<Vec<DeviceInfo>, String> {
                     bmax = Some(bmax.map_or(*max, |m: u32| m.max(*max)));
                 }
             }
+        }
+        if let Ok(c) = d.default_output_config() {
+            usable = true;
+            max_ch = max_ch.max(c.channels());
+            if !rates.contains(&c.sample_rate().0) {
+                rates.push(c.sample_rate().0);
+            }
+        }
+        if !usable {
+            continue;
         }
         rates.sort();
         out.push(DeviceInfo { is_default: name == default_name, name, max_channels: max_ch, sample_rates: rates, buffer_min: bmin, buffer_max: bmax });

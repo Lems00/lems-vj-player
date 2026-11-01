@@ -15,7 +15,13 @@
     <div class="row"><label>Casque <select id="phones"></select></label></div>
     <div class="row"><label>Taille de tampon demandée <select id="buffer"><option>128</option><option selected>256</option><option>512</option><option>1024</option></select></label>
       <button class="solid" id="start">Lancer les deux sons</button><button id="stop">Arrêter</button><button id="refresh">Actualiser la liste</button></div>
-    <table><thead><tr><th>Sortie</th><th>Périphérique</th><th>Fréquence</th><th>Tampon</th><th>Latence estimée</th><th>Rappels</th><th>Erreurs</th></tr></thead><tbody id="streams"></tbody></table>
+    <div class="note">Le chiffre de tampon ne compte pas la latence propre de l'appareil : un casque Bluetooth (AirPods…) ajoute environ 150 à 250 ms, une sortie filaire ou USB quelques millisecondes. Sur un MacBook, haut-parleurs et prise casque sont une seule sortie : il faut un second appareil (USB, Bluetooth) ou une carte son à 4 sorties.</div>
+    <table><thead><tr><th>Sortie</th><th>Périphérique</th><th>Fréquence</th><th>Tampon</th><th>Tampon (hors latence de l'appareil)</th><th>Rappels</th><th>Erreurs</th></tr></thead><tbody id="streams"></tbody></table>
+  </section>
+  <section class="panel">
+    <h2>Tous les appareils vus par le système</h2>
+    <p>Diagnostic : un appareil absent de la liste ci-dessus apparaît ici avec la raison.</p>
+    <table><thead><tr><th>Appareil</th><th>Sortie</th><th>Entrée</th></tr></thead><tbody id="inventory"></tbody></table>
   </section>
   <section class="panel">
     <h2>Ce que vous entendez</h2>
@@ -40,6 +46,11 @@ async function refresh() {
     devices.forEach(d => s.append(el('option', { value: d.name }, `${d.name} · ${d.max_channels} can. · ${d.sample_rates.join('/') || '?'} Hz${d.buffer_min ? ` · tampon ${d.buffer_min}–${d.buffer_max}` : ''}`)));
   }
   if (devices.length > 1) $('#phones').value = devices.find(d => !d.is_default)?.name || '';
+  try {
+    const inv = await call('audio_inventory');
+    report.resultats.inventaire = inv;
+    $('#inventory').replaceChildren(...inv.map(d => el('tr', null, el('td', { class: 'ok' }, d.name + (d.default_output ? ' (sortie par défaut)' : '')), el('td', null, d.output), el('td', null, d.input))));
+  } catch (e) { report.resultats.inventaire_erreur = String(e); }
   renderReport();
 }
 function row(label, r, s) {

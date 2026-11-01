@@ -34,6 +34,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             platform_info,
             audio::audio_devices,
+            audio::audio_inventory,
             audio::audio_start,
             audio::audio_stats,
             audio::audio_stop,
