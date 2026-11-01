@@ -4,7 +4,13 @@
 //! choisit. Sur Android, Tauri ne voit qu'un écran : l'écran externe
 //! demandera un module natif (voir le README des essais).
 
-use tauri::{AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager};
+#[cfg(desktop)]
+use tauri::{PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
+
+/// Sur Android, une application n'a qu'une fenêtre.
+#[cfg(mobile)]
+const MOBILE_ONE_WINDOW: &str = "Sur Android, l'application n'a qu'une fenêtre : la sortie sur un deuxième écran demandera un module natif (voir le README des essais).";
 
 #[derive(serde::Serialize)]
 pub struct MonitorInfo {
@@ -41,6 +47,17 @@ pub fn list_monitors(app: AppHandle) -> Result<Vec<MonitorInfo>, String> {
 /// Ouvre la fenêtre de sortie sur l'écran `index`.
 #[tauri::command]
 pub fn open_output(app: AppHandle, index: usize, fullscreen: bool) -> Result<serde_json::Value, String> {
+    #[cfg(mobile)]
+    {
+        let _ = (app, index, fullscreen);
+        Err(MOBILE_ONE_WINDOW.into())
+    }
+    #[cfg(desktop)]
+    open_output_desktop(app, index, fullscreen)
+}
+
+#[cfg(desktop)]
+fn open_output_desktop(app: AppHandle, index: usize, fullscreen: bool) -> Result<serde_json::Value, String> {
     let monitors = app.available_monitors().map_err(|e| e.to_string())?;
     let m = monitors.get(index).ok_or("écran introuvable")?;
     if let Some(w) = app.get_webview_window("sortie") {
@@ -75,6 +92,17 @@ pub fn close_output(app: AppHandle) {
 /// Ouvre une page des essais servie en http://localhost (essai 1, variante B).
 #[tauri::command]
 pub fn open_http_page(app: AppHandle, page: String) -> Result<(), String> {
+    #[cfg(mobile)]
+    {
+        let _ = (app, page);
+        Err(MOBILE_ONE_WINDOW.into())
+    }
+    #[cfg(desktop)]
+    open_http_page_desktop(app, page)
+}
+
+#[cfg(desktop)]
+fn open_http_page_desktop(app: AppHandle, page: String) -> Result<(), String> {
     if !page.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.') {
         return Err("nom de page invalide".into());
     }

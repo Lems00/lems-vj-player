@@ -171,7 +171,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#origin').textContent = 'Origine de cette page : ' + location.origin;
   DEFAULT_IDS.forEach((id, i) => $('#ids').append(el('input', { class: 'mono', value: id, 'aria-label': 'Vidéo platine ' + DECKS[i], size: 14 })));
   $('#load').onclick = loadPlayers; $('#playAll').onclick = playAll; $('#pauseAll').onclick = pauseAll; $('#measure').onclick = measureAll;
-  if (IN_APP && !location.origin.startsWith('http://localhost')) { $('#httpVariant').hidden = false; $('#httpVariant').onclick = () => call('open_http_page', { page: 'essai1-youtube.html' }); }
+  if (IN_APP && !navigator.userAgent.includes('Android') && !location.origin.startsWith('http://localhost')) { $('#httpVariant').hidden = false; $('#httpVariant').onclick = () => call('open_http_page', { page: 'essai1-youtube.html' }); }
   document.querySelector('main').append(reportPanel());
 });
 </script>
