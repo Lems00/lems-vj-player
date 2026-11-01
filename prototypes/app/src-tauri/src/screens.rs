@@ -6,7 +6,7 @@
 
 use tauri::{AppHandle, Manager};
 #[cfg(desktop)]
-use tauri::{PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
+use tauri::{WebviewUrl, WebviewWindowBuilder};
 
 /// Sur Android, une application n'a qu'une fenêtre.
 #[cfg(mobile)]
@@ -46,39 +46,60 @@ pub fn list_monitors(app: AppHandle) -> Result<Vec<MonitorInfo>, String> {
 
 /// Ouvre la fenêtre de sortie sur l'écran `index`.
 #[tauri::command]
-pub fn open_output(app: AppHandle, index: usize, fullscreen: bool) -> Result<serde_json::Value, String> {
+pub async fn open_output(app: AppHandle, index: usize, fullscreen: bool) -> Result<serde_json::Value, String> {
     #[cfg(mobile)]
     {
         let _ = (app, index, fullscreen);
         Err(MOBILE_ONE_WINDOW.into())
     }
     #[cfg(desktop)]
-    open_output_desktop(app, index, fullscreen)
+    open_output_desktop(app, index, fullscreen).await
 }
 
 #[cfg(desktop)]
-fn open_output_desktop(app: AppHandle, index: usize, fullscreen: bool) -> Result<serde_json::Value, String> {
+async fn open_output_desktop(app: AppHandle, index: usize, fullscreen: bool) -> Result<serde_json::Value, String> {
+    use std::time::Duration;
     let monitors = app.available_monitors().map_err(|e| e.to_string())?;
-    let m = monitors.get(index).ok_or("écran introuvable")?;
+    let m = monitors.get(index).ok_or("écran introuvable")?.clone();
     if let Some(w) = app.get_webview_window("sortie") {
         let _ = w.close();
+        tokio::time::sleep(Duration::from_millis(200)).await;
     }
-    let pos = m.position();
+    // Écrans d'échelles différentes (Mac 2×, écran externe 1×) : on place la
+    // fenêtre en points de l'écran visé, pas en pixels physiques.
+    let scale = m.scale_factor();
+    let (px, py) = (m.position().x as f64 / scale, m.position().y as f64 / scale);
+    let (lw, lh) = (m.size().width as f64 / scale, m.size().height as f64 / scale);
     let started = std::time::Instant::now();
     let window = WebviewWindowBuilder::new(&app, "sortie", WebviewUrl::App("essai4-sortie.html".into()))
         .title("Lems VJ Player — sortie")
         .decorations(false)
+        .position(px + 40.0, py + 40.0)
+        .inner_size((lw - 80.0).max(320.0), (lh - 80.0).max(240.0))
         .build()
         .map_err(|e| e.to_string())?;
-    window.set_position(PhysicalPosition::new(pos.x + 40, pos.y + 40)).map_err(|e| e.to_string())?;
+    // On attend que la fenêtre soit posée sur le bon écran avant le plein écran :
+    // sinon macOS l'agrandit sur l'écran où elle se trouve encore.
+    let target = *m.position();
+    let mut placed = false;
+    for _ in 0..20 {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        if window.current_monitor().ok().flatten().map(|cm| *cm.position() == target).unwrap_or(false) {
+            placed = true;
+            break;
+        }
+    }
     if fullscreen {
         window.set_fullscreen(true).map_err(|e| e.to_string())?;
+        tokio::time::sleep(Duration::from_millis(900)).await; // animation de macOS
     }
-    let landed = window.current_monitor().ok().flatten().map(|cm| cm.position() == pos);
+    let landed = window.current_monitor().ok().flatten().map(|cm| *cm.position() == target);
     Ok(serde_json::json!({
         "opened_ms": started.elapsed().as_millis() as u64,
+        "placed_before_fullscreen": placed,
         "on_requested_monitor": landed,
         "fullscreen": window.is_fullscreen().unwrap_or(false),
+        "target": { "x": target.x, "y": target.y, "scale": scale },
     }))
 }
 

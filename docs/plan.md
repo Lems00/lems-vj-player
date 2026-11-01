@@ -131,3 +131,7 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - Le Bluetooth ajoute environ 150 à 250 ms : inadapté à la pré-écoute d'un DJ.
 - **v6 : deux sorties séparées confirmées sur Mac** — haut-parleurs du MacBook Pro (grave, sortie principale) et AirPods (aigu, casque) en même temps, sans erreur ni craquement, sur 4 passages (environ 70 s). Tampons : 10,7 ms sur les sorties intégrées (512 échantillons imposés), 5,3 ms sur les AirPods, plus la latence Bluetooth.
 - **Défaut de la bibliothèque audio (cpal 0.15) sur Mac** : les sorties intégrées (« Écouteurs externes », « Haut-parleurs MacBook Pro ») qui ne sont pas la sortie par défaut renvoient « Invalid property value » à la lecture de leurs réglages, et étaient écartées. Correctif v6 : elles sont proposées et ouvertes en 48 kHz stéréo — **confirmé, elles fonctionnent**. À garder dans l'application, ou à remplacer par cpal 0.16 / CoreAudio direct si le défaut gêne ailleurs.
+
+**Essai 4 — deuxième écran (v6)**
+- Écran externe 1920 × 1080 (échelle 1) détecté à côté de l'écran du MacBook Pro (2880 × 1800, échelle 2).
+- La fenêtre s'ouvre en 0,1 s et passe en plein écran, mais **pas sur l'écran demandé**. Cause probable : position donnée en pixels physiques alors que les écrans n'ont pas la même échelle, et plein écran demandé avant que la fenêtre soit posée. Correctif v7 : position en points de l'écran visé, plein écran seulement une fois la fenêtre posée.

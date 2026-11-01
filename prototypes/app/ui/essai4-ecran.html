@@ -46,7 +46,7 @@ async function open() {
   try {
     const r = await call('open_output', { index: +sel.value, fullscreen: $('#fs').checked });
     report.resultats.ouverture = r;
-    $('#state').textContent = `Fenêtre ouverte en ${r.opened_ms} ms · sur l'écran demandé : ${r.on_requested_monitor === null ? 'inconnu' : r.on_requested_monitor ? 'oui' : 'non'} · plein écran : ${r.fullscreen ? 'oui' : 'non'}`;
+    $('#state').textContent = `Fenêtre ouverte en ${r.opened_ms} ms · posée sur l'écran avant le plein écran : ${r.placed_before_fullscreen === undefined ? '—' : r.placed_before_fullscreen ? 'oui' : 'non'} · sur l'écran demandé à la fin : ${r.on_requested_monitor === null ? 'inconnu' : r.on_requested_monitor ? 'oui' : 'non'} · plein écran : ${r.fullscreen ? 'oui' : 'non'}`;
   } catch (e) { $('#state').replaceChildren(el('span', { class: 'err' }, String(e))); }
   renderReport();
 }
