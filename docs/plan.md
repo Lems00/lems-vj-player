@@ -119,6 +119,12 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - **Dérive** : de 0 à 250 ms de retard par 10 s selon la charge ; la vidéo la plus lourde (très haute définition) décroche à chaque passage. → recalages réguliers nécessaires entre platines et écrans ; limiter la qualité des platines non diffusées.
 - Saut dans la vidéo (repère) : 0,25 à 0,7 s → préparer les repères à l'avance.
 
+**Essai 1 — confirmation en v6 (fenêtre principale servie en `http://localhost`)**
+- **YouTube joue dans la fenêtre principale** : plus d'erreur 153. Décision confirmée.
+- **Pas de vitesse de 0,05, arrondi vers le bas** : 1,01 à 1,04 → 1,00 ; 1,06 → 1,05 ; 0,97 et 0,99 → 0,95 ; vitesses acceptées réellement jouées (1,0502). **Pas de SYNC fin sur YouTube, établi.**
+- Saut vers un repère : 0,22 à 0,34 s. Écart-type de la position : 16 à 18 ms.
+- **Probable : un changement de vitesse provoque un arrêt d'environ 0,2 s** (retard de 200 à 250 ms sur les 4 lecteurs juste après neuf changements de vitesse, alors que la vitesse mesurée à 1× est exacte). À confirmer à l'oreille ; si c'est le cas, éviter les changements de tempo sur une platine YouTube à l'antenne.
+
 **Essai 2 — deux sorties son**
 - Deux flux simultanés stables (une minute, aucune erreur, aucun craquement).
 - Un MacBook n'a qu'une sortie pour ses haut-parleurs et sa prise casque : la pré-écoute demande un second appareil (carte son USB à deux sorties, ou casque USB / Bluetooth).
