@@ -43,7 +43,7 @@ async function refresh() {
   for (const id of ['main', 'phones']) {
     const s = $('#' + id); s.innerHTML = '';
     s.append(el('option', { value: '' }, 'Sortie par défaut du système'));
-    devices.forEach(d => s.append(el('option', { value: d.name }, `${d.name} · ${d.max_channels} can. · ${d.sample_rates.join('/') || '?'} Hz${d.buffer_min ? ` · tampon ${d.buffer_min}–${d.buffer_max}` : ''}`)));
+    devices.forEach(d => s.append(el('option', { value: d.name }, d.config_unknown ? `${d.name} · réglages non lisibles, essai en 48 kHz stéréo` : `${d.name} · ${d.max_channels} can. · ${d.sample_rates.join('/') || '?'} Hz${d.buffer_min ? ` · tampon ${d.buffer_min}–${d.buffer_max}` : ''}`)));
   }
   if (devices.length > 1) $('#phones').value = devices.find(d => !d.is_default)?.name || '';
   try {

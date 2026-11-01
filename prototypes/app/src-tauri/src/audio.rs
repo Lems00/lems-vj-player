@@ -20,6 +20,9 @@ pub struct DeviceInfo {
     pub sample_rates: Vec<u32>,
     pub buffer_min: Option<u32>,
     pub buffer_max: Option<u32>,
+    /// Réglages illisibles (défaut connu de cpal sur les sorties intégrées du Mac) :
+    /// l'essai ouvrira la sortie en 48 kHz stéréo.
+    pub config_unknown: bool,
 }
 
 #[derive(Serialize, Clone, Default)]
@@ -67,7 +70,29 @@ fn find_device(host: &cpal::Host, name: &str) -> Option<cpal::Device> {
     if name.is_empty() {
         return host.default_output_device();
     }
-    host.output_devices().ok()?.find(|d| d.name().map(|n| n == name).unwrap_or(false))
+    // On cherche parmi tous les appareils : les sorties intégrées du Mac dont
+    // les réglages sont illisibles n'apparaissent pas dans output_devices().
+    // Un même nom peut désigner l'entrée et la sortie (AirPods) : on écarte
+    // les appareils qui n'ont certainement aucune sortie.
+    let mut unreadable = None;
+    for d in host.devices().ok()? {
+        if d.name().map(|n| n != name).unwrap_or(true) {
+            continue;
+        }
+        match d.supported_output_configs() {
+            Ok(mut c) => {
+                if c.next().is_some() {
+                    return Some(d);
+                }
+            }
+            Err(_) => {
+                if unreadable.is_none() {
+                    unreadable = Some(d);
+                }
+            }
+        }
+    }
+    unreadable
 }
 
 /// Ce que le système dit d'un appareil son, erreurs comprises (diagnostic).
@@ -116,7 +141,12 @@ pub fn audio_devices() -> Result<Vec<DeviceInfo>, String> {
         let mut max_ch = 0;
         let (mut bmin, mut bmax) = (None, None);
         let mut usable = false;
-        if let Ok(cfgs) = d.supported_output_configs() {
+        let mut unreadable = false;
+        let listed = d.supported_output_configs();
+        if listed.is_err() {
+            unreadable = true;
+        }
+        if let Ok(cfgs) = listed {
             for c in cfgs {
                 usable = true;
                 max_ch = max_ch.max(c.channels());
@@ -138,24 +168,37 @@ pub fn audio_devices() -> Result<Vec<DeviceInfo>, String> {
                 rates.push(c.sample_rate().0);
             }
         }
-        if !usable {
+        let config_unknown = !usable && unreadable;
+        if config_unknown {
+            // Sur Mac, une sortie intégrée qui n'est pas la sortie par défaut
+            // renvoie « Invalid property value » : on la propose quand même.
+            max_ch = 2;
+            rates = vec![FALLBACK_RATE];
+        } else if !usable {
             continue;
         }
         rates.sort();
-        out.push(DeviceInfo { is_default: name == default_name, name, max_channels: max_ch, sample_rates: rates, buffer_min: bmin, buffer_max: bmax });
+        out.push(DeviceInfo { is_default: name == default_name, name, max_channels: max_ch, sample_rates: rates, buffer_min: bmin, buffer_max: bmax, config_unknown });
     }
     Ok(out)
 }
 
+/// Réglages de repli quand le système ne dit rien d'une sortie.
+const FALLBACK_RATE: u32 = 48_000;
+
 fn build_stream(device: &cpal::Device, buffer: u32, tone_hz: f32, counters: Arc<Counters>) -> Result<(cpal::Stream, StreamReport), String> {
     let name = device.name().unwrap_or_else(|_| "?".into());
-    let supported = device.default_output_config().map_err(|e| format!("{name} : {e}"))?;
-    let sample_rate = supported.sample_rate().0;
-    let channels = supported.channels();
-    let fixed_ok = matches!(supported.buffer_size(), cpal::SupportedBufferSize::Range { min, max } if *min <= buffer && buffer <= *max);
+    let (sample_rate, channels, format, fixed_ok, fallback) = match device.default_output_config() {
+        Ok(supported) => {
+            let fixed_ok = matches!(supported.buffer_size(), cpal::SupportedBufferSize::Range { min, max } if *min <= buffer && buffer <= *max);
+            (supported.sample_rate().0, supported.channels(), supported.sample_format(), fixed_ok, false)
+        }
+        // Réglages illisibles : on tente 48 kHz stéréo en flottant, taille de tampon libre.
+        Err(_) => (FALLBACK_RATE, 2, cpal::SampleFormat::F32, false, true),
+    };
     let config = cpal::StreamConfig {
         channels,
-        sample_rate: supported.sample_rate(),
+        sample_rate: cpal::SampleRate(sample_rate),
         buffer_size: if fixed_ok { cpal::BufferSize::Fixed(buffer) } else { cpal::BufferSize::Default },
     };
     let mut phase = 0f32;
@@ -163,7 +206,7 @@ fn build_stream(device: &cpal::Device, buffer: u32, tone_hz: f32, counters: Arc<
     let ch = channels as usize;
     let c2 = counters.clone();
     let err_counters = counters.clone();
-    let stream = match supported.sample_format() {
+    let stream = match format {
         cpal::SampleFormat::F32 => device.build_output_stream(
             &config,
             move |data: &mut [f32], info: &cpal::OutputCallbackInfo| {
@@ -207,7 +250,13 @@ fn build_stream(device: &cpal::Device, buffer: u32, tone_hz: f32, counters: Arc<
         sample_rate,
         channels,
         requested_buffer: buffer,
-        buffer_mode: if fixed_ok { format!("fixe {buffer}") } else { "par défaut (taille demandée refusée)".into() },
+        buffer_mode: if fallback {
+            "réglages illisibles : 48 kHz stéréo, tampon du système".into()
+        } else if fixed_ok {
+            format!("fixe {buffer}")
+        } else {
+            "par défaut (taille demandée refusée)".into()
+        },
         tone_hz,
         error: None,
     };

@@ -123,4 +123,4 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - Deux flux simultanés stables (une minute, aucune erreur, aucun craquement).
 - Un MacBook n'a qu'une sortie pour ses haut-parleurs et sa prise casque : la pré-écoute demande un second appareil (carte son USB à deux sorties, ou casque USB / Bluetooth).
 - Le Bluetooth ajoute environ 150 à 250 ms : inadapté à la pré-écoute d'un DJ.
-- En cours : la liste ne montrait qu'une sortie (la sortie par défaut) ; inventaire complet ajouté pour comprendre.
+- **Défaut de la bibliothèque audio (cpal 0.15) sur Mac** : les sorties intégrées (« Écouteurs externes », « Haut-parleurs MacBook Pro ») qui ne sont pas la sortie par défaut renvoient « Invalid property value » à la lecture de leurs réglages, et étaient écartées. Correctif v6 : elles sont proposées et ouvertes en 48 kHz stéréo. À confirmer ; sinon, essayer cpal 0.16 ou CoreAudio directement.
