@@ -108,3 +108,19 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - Vérifié dans le cloud : 22 tests du cœur (appairage SPAKE2, chiffrement, horloge, connexion réelle, découverte mDNS), compilation Windows sans erreur, 35 vérifications des pages avec doublures.
 - Reste à faire sur appareils : vrai YouTube, vrai son, compilation Mac et Android, Wi-Fi réel.
 - Deux défauts trouvés et corrigés par les tests : l'appareil se croyait accepté avant que la console l'ait enregistré ; un mauvais code n'était pas compté si l'appareil coupait la connexion (essais illimités possibles).
+
+### Résultats des essais sur Mac (MacBook, processeur Apple, 1er novembre 2026)
+
+**Essai 1 — YouTube**
+- **Fenêtre en `tauri://localhost` : YouTube refuse ses lecteurs (erreur 153).** Servie en `http://localhost`, la même page fonctionne. → **Décision : sur Mac, l'interface sera servie en `http://localhost`** (greffon localhost de Tauri). À vérifier sur Windows et Android, dont l'adresse par défaut est déjà en `http://`.
+- 4 lecteurs simultanés : chargement en 0,6 à 1 s chacun, sans erreur.
+- **Vitesse : pas de 0,05 seulement.** 1,05× est réellement jouée (1,050) ; 0,98× est arrondie à 0,95×. → **Pas de SYNC fin sur YouTube**, mais des sauts de tempo de ±5 % sont possibles. Les fichiers locaux gardent le réglage fin.
+- Position : écart-type de 1 à 19 ms selon les passages.
+- **Dérive** : de 0 à 250 ms de retard par 10 s selon la charge ; la vidéo la plus lourde (très haute définition) décroche à chaque passage. → recalages réguliers nécessaires entre platines et écrans ; limiter la qualité des platines non diffusées.
+- Saut dans la vidéo (repère) : 0,25 à 0,7 s → préparer les repères à l'avance.
+
+**Essai 2 — deux sorties son**
+- Deux flux simultanés stables (une minute, aucune erreur, aucun craquement).
+- Un MacBook n'a qu'une sortie pour ses haut-parleurs et sa prise casque : la pré-écoute demande un second appareil (carte son USB à deux sorties, ou casque USB / Bluetooth).
+- Le Bluetooth ajoute environ 150 à 250 ms : inadapté à la pré-écoute d'un DJ.
+- En cours : la liste ne montrait qu'une sortie (la sortie par défaut) ; inventaire complet ajouté pour comprendre.

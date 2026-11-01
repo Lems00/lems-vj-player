@@ -29,6 +29,22 @@ fn platform_info() -> serde_json::Value {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build())
+        .setup(|app| {
+            // Sur Mac, la fenêtre principale a pour adresse tauri://localhost, et
+            // YouTube y refuse ses lecteurs (erreur 153, essai 1 du 1er novembre).
+            // On y sert donc les pages en http://localhost, comme la variante B.
+            #[cfg(desktop)]
+            if cfg!(target_os = "macos") {
+                use tauri::Manager;
+                if let Some(main) = app.get_webview_window("main") {
+                    let url = format!("http://localhost:{LOCALHOST_PORT}/index.html");
+                    main.navigate(url.parse().expect("adresse locale valide"))?;
+                }
+            }
+            #[cfg(mobile)]
+            let _ = app;
+            Ok(())
+        })
         .manage(audio::AudioState::default())
         .manage(network::NetState::default())
         .invoke_handler(tauri::generate_handler![

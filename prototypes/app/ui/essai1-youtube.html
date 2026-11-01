@@ -182,6 +182,13 @@ async function measureAll() {
     report.resultats.memoire_js_mo = +mb.toFixed(1);
     $('#memory').textContent = 'Mémoire JavaScript utilisée : ' + mb.toFixed(1) + ' Mo (indicatif, sans la vidéo elle-même).';
   } else $('#memory').textContent = "Mémoire : non mesurable dans ce moteur (Safari / macOS). Regardez le Moniteur d'activité.";
+  const refused = meta.filter(m => m && m.errors.length).map(m => m.errors[0]);
+  if (refused.length) {
+    report.resultats.verdict_sync = `YouTube refuse la lecture (erreur ${[...new Set(refused)].join(', ')}) sur ${refused.length} lecteur(s) : mesures de vitesse sans valeur. Origine de la page : ${location.origin}.`;
+    $('#verdict').hidden = false; $('#verdict').textContent = report.resultats.verdict_sync;
+    step('Mesures interrompues : YouTube refuse la lecture.');
+    renderReport(); $('#measure').disabled = false; return;
+  }
   const sync = rateOk.every(Boolean);
   report.resultats.verdict_sync = sync ? 'la vitesse réelle suit 1,05× et 0,98× : SYNC envisageable sur YouTube' : 'la vitesse réelle ne suit pas : pas de SYNC sur YouTube';
   $('#verdict').hidden = false; $('#verdict').textContent = report.resultats.verdict_sync;

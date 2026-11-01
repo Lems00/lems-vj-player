@@ -1,8 +1,10 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "pages-localhost",
-  "description": "Pages servies en http://localhost (variante B de l'essai 1) : mêmes commandes que la fenêtre principale.",
+  "description": "Pages servies en http://localhost : fenêtre principale sur Mac (YouTube l'exige), variante B de l'essai 1. Mêmes commandes que la fenêtre principale.",
   "windows": [
+    "main",
+    "sortie",
     "http-*"
   ],
   "remote": {
