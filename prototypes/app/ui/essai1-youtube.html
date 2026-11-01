@@ -19,14 +19,15 @@
     <div class="row">
       <button class="solid" id="load">1. Charger les 4 lecteurs</button>
       <button id="playAll" disabled>2. Tout lancer</button>
-      <button id="measure" disabled>3. Lancer les mesures (20 s)</button>
+      <button id="measure" disabled>3. Lancer les mesures (1 à 2 min)</button>
       <button id="pauseAll" disabled>Tout arrêter</button>
     </div>
+    <p id="step" class="mono"></p>
     <div class="grid4" id="players"></div>
   </section>
   <section class="panel">
     <h2>Résultats</h2>
-    <table><thead><tr><th>Lecteur</th><th>Chargement</th><th>Vitesses proposées</th><th>Vitesse 1,05× acceptée ?</th><th>Précision position</th><th>Dérive sur 10 s</th><th>Saut (seek)</th></tr></thead><tbody id="results"></tbody></table>
+    <table><thead><tr><th>Lecteur</th><th>Chargement</th><th>Vitesses proposées</th><th>Vitesse réelle à 1,05× / 0,98×</th><th>Précision position</th><th>Dérive sur 10 s</th><th>Saut (seek)</th></tr></thead><tbody id="results"></tbody></table>
     <p id="memory"></p>
     <p id="verdict" class="verdict" hidden></p>
   </section>
@@ -100,15 +101,28 @@ function pauseAll() { players.forEach(p => p && p.pauseVideo && p.pauseVideo());
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// Vitesse réellement jouée : on compare l'avance de la vidéo à l'horloge, à vitesse demandée.
+async function effectiveSpeed(p, rate, seconds) {
+  p.setPlaybackRate(rate);
+  await sleep(1500);                       // laisser le lecteur se stabiliser
+  const announced = p.getPlaybackRate();
+  const t0 = performance.now(), p0 = p.getCurrentTime();
+  await sleep(seconds * 1000);
+  const t1 = performance.now(), p1 = p.getCurrentTime();
+  return { demandee: rate, annoncee: announced, reelle: +((p1 - p0) / ((t1 - t0) / 1000)).toFixed(4) };
+}
+
 async function measureRate(i) {
   const p = players[i];
-  p.setPlaybackRate(1.05);
-  await sleep(1200);
-  const got = p.getPlaybackRate();
+  const ref = await effectiveSpeed(p, 1, 5);
+  const up = await effectiveSpeed(p, 1.05, 5);
+  const down = await effectiveSpeed(p, 0.98, 5);
   p.setPlaybackRate(1);
-  const ok = Math.abs(got - 1.05) < 0.001;
-  report.resultats.lecteurs[i].vitesse_1_05_obtenue = got;
-  setCell(i, 3, ok ? 'oui (1,05×)' : 'non : ' + got + '×', ok);
+  // Vitesse relative à la vitesse 1× mesurée, pour neutraliser la dérive propre du lecteur.
+  const relUp = up.reelle / ref.reelle, relDown = down.reelle / ref.reelle;
+  const ok = Math.abs(relUp - 1.05) < 0.01 && Math.abs(relDown - 0.98) < 0.01;
+  Object.assign(report.resultats.lecteurs[i], { vitesse_1: ref, vitesse_1_05: up, vitesse_0_98: down, vitesse_relative_1_05: +relUp.toFixed(3), vitesse_relative_0_98: +relDown.toFixed(3), vitesse_fine_reelle: ok });
+  setCell(i, 3, `${relUp.toFixed(3)}× / ${relDown.toFixed(3)}× ${ok ? '(suit)' : '(ne suit pas)'}`, ok);
   return ok;
 }
 
@@ -151,17 +165,21 @@ async function measureSeek(i) {
 
 async function measureAll() {
   $('#measure').disabled = true;
-  const rateOk = [];
-  for (let i = 0; i < players.length; i++) rateOk.push(await measureRate(i));
+  const step = (t) => { $('#step').textContent = t; };
+  step('Étape 1/3 : vitesses réelles (4 lecteurs en parallèle, environ 20 s)…');
+  const rateOk = await Promise.all(players.map((_, i) => measureRate(i)));
+  step('Étape 2/3 : précision de la position (10 s)…');
   await Promise.all(players.map((_, i) => measurePosition(i, 10)));
+  step('Étape 3/3 : temps de saut (jusqu’à 8 s par lecteur)…');
   for (let i = 0; i < players.length; i++) await measureSeek(i);
+  step('Mesures terminées : vous pouvez copier le rapport.');
   if (performance.memory) {
     const mb = performance.memory.usedJSHeapSize / 1048576;
     report.resultats.memoire_js_mo = +mb.toFixed(1);
     $('#memory').textContent = 'Mémoire JavaScript utilisée : ' + mb.toFixed(1) + ' Mo (indicatif, sans la vidéo elle-même).';
   } else $('#memory').textContent = "Mémoire : non mesurable dans ce moteur (Safari / macOS). Regardez le Moniteur d'activité.";
   const sync = rateOk.every(Boolean);
-  report.resultats.verdict_sync = sync ? 'vitesse fine possible : SYNC envisageable' : 'vitesses par paliers : pas de SYNC sur YouTube';
+  report.resultats.verdict_sync = sync ? 'la vitesse réelle suit 1,05× et 0,98× : SYNC envisageable sur YouTube' : 'la vitesse réelle ne suit pas : pas de SYNC sur YouTube';
   $('#verdict').hidden = false; $('#verdict').textContent = report.resultats.verdict_sync;
   renderReport();
   $('#measure').disabled = false;

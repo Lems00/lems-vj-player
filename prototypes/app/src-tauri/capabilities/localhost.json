@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "pages-localhost",
+  "description": "Variante B de l'essai 1 : la page servie en http://localhost peut lire les informations système.",
+  "windows": [
+    "http-*"
+  ],
+  "remote": {
+    "urls": [
+      "http://localhost:14870/*"
+    ]
+  },
+  "permissions": [
+    "core:default"
+  ]
+}
