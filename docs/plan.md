@@ -152,3 +152,7 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - **Côté Mac (console, qui lit aussi la vidéo)** : la correction s'emballait (10 sauts en 16 s) — chaque saut prend 0,25 à 0,35 s, la mesure suivante voyait encore un écart et relançait un saut.
 - **v8** : rattrapage doux à 1,05× / 0,95× pour les écarts de 30 ms à 1,5 s ; saut seulement au-delà, avec une anticipation apprise ; stabilisation après chaque saut. Simulation d'un lecteur décalé de 140 ms au pas de vitesse YouTube : écart ramené à 1 ms (médiane) en 2,8 s, un seul rattrapage. **À confirmer sur vos appareils.**
 - **v8** : un appareil qui se reconnecte remplace son ancienne connexion (le PC était connecté 3 fois) ; la recherche s'arrête 0,6 s après la première console trouvée (au lieu de 4 s).
+
+**Essai 5 en v8 (PC console, Mac écran) : pas de connexion.** Le Mac ne trouve pas le PC (« Aucune console trouvée »), alors que le PC trouvait le Mac à l'essai 3. Cause probable : le pare-feu Windows bloque l'annonce et les connexions entrantes vers le PC. L'adresse saisie à la main contenait un point à la place des deux-points (`…231.48700`), d'où « failed to lookup address ».
+
+- **v9** : la console affiche ses adresses (`ws://IP:48700`) sur la page de l'essai 5 et dans les rapports ; l'adresse saisie est corrigée (point au lieu des deux-points, sans `ws://`, sans port) ; la connexion abandonne après 8 s ; les erreurs disent la cause probable (adresse mal écrite, rien n'écoute, pare-feu, autre réseau, code) ; le rapport de l'écran garde la recherche et l'erreur de connexion.

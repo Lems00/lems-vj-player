@@ -14,7 +14,7 @@ Chaque essai affiche un **rapport** : bouton « Copier le rapport », puis colle
 
 ## Ce qui a déjà été vérifié (dans le cloud, sans vos appareils)
 
-- **Le cœur commun** (`core/`) : 22 tests automatiques, tous verts, relancés 10 fois sans échec.
+- **Le cœur commun** (`core/`) : 26 tests automatiques, tous verts, relancés 10 fois sans échec.
   - **protocole** des messages ;
   - **appairage** par code à 6 chiffres (SPAKE2 : le code n'est jamais envoyé), avec mauvais code détecté des deux côtés et code changé après 3 erreurs ;
   - **chiffrement** des échanges (rejeu et modification refusés) ;
@@ -22,7 +22,7 @@ Chaque essai affiche un **rapport** : bouton « Copier le rapport », puis colle
   - **connexion réelle** console ↔ appareils sur la même machine, plusieurs appareils compris ;
   - **découverte mDNS**.
 - **L'application** (`app/`) : le code Rust se compile pour **Windows** sans erreur ni avertissement de l'outil de contrôle.
-- **Les pages des 5 essais** : 35 vérifications automatiques passent, avec un **faux lecteur YouTube** et une **fausse application**. Cela prouve que la logique des pages fonctionne, pas que YouTube ou le son se comportent comme prévu.
+- **Les pages des 5 essais** : 39 vérifications automatiques passent, avec un **faux lecteur YouTube** et une **fausse application**. Cela prouve que la logique des pages fonctionne, pas que YouTube ou le son se comportent comme prévu.
 
 **Pas encore vérifié, et c'est l'objet de vos essais :**
 - le vrai YouTube (bloqué dans le cloud) ;
@@ -143,6 +143,7 @@ Le verdict « pas de SYNC sur YouTube » apparaît si le lecteur refuse la vites
 
 ### 5 · Écran synchronisé
 1. Sur la console : « Cet appareil est la console ». Sur l'écran : « Cet appareil est un écran », puis la recherche, le code, et la connexion.
+   Si la recherche ne trouve rien, recopiez sur l'écran l'adresse affichée par la console (par exemple `ws://192.168.1.20:48700`). Si la console est un PC Windows, autorisez d'abord « Lems VJ Essais » en réseau **privé** dans le pare-feu.
 2. Sur la console : « Lancer la lecture synchronisée ». Les deux appareils lisent la même vidéo.
 3. Filmez les deux **mires** côte à côte pendant 10 s avec un téléphone. L'écart se lit image par image sur la vidéo.
 4. Après 30 s, copiez le rapport de l'écran : écart médian, écart à 95 %, corrections.

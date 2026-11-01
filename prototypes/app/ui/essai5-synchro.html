@@ -17,12 +17,14 @@
   </section>
   <section class="panel" id="connectPanel" hidden>
     <h2>Connexion de l'écran</h2>
-    <div class="row"><button id="discover">Chercher la console</button><label>Adresse <input id="url" class="mono" size="26"></label><label>Code <input id="pin" class="mono" size="8" maxlength="6"></label><button class="solid" id="connect">Se connecter</button></div>
+    <div class="row"><button id="discover">Chercher la console</button><label>Adresse <input id="url" class="mono" size="26" placeholder="ws://192.168.1.20:48700"></label><label>Code <input id="pin" class="mono" size="8" maxlength="6"></label><button class="solid" id="connect">Se connecter</button></div>
     <p id="connState"></p>
   </section>
   <section class="panel" id="consolePanel" hidden>
     <h2>Console</h2>
     <div class="row"><span>Code :</span><span class="big" id="code">——————</span><span id="peerCount"></span></div>
+    <div class="row"><span>Adresse à saisir sur l'écran si la recherche ne trouve rien :</span><span class="mono" id="addr">—</span></div>
+    <p id="consoleState"></p>
     <div class="row"><label>Vidéo YouTube <input id="video" class="mono" value="aqz-KE-bpKQ" size="14"></label><label>Départ à <input id="startAt" type="number" value="30" size="4" style="width:80px"> s</label>
       <button class="solid" id="launch">Lancer la lecture synchronisée</button><button id="stopAll">Arrêter</button></div>
   </section>
@@ -72,6 +74,10 @@ async function asConsole() {
   mode = 'console'; $('#consolePanel').hidden = false; $('#connectPanel').hidden = true;
   report.resultats.role = 'console';
   const info = await call('console_start', { name: $('#name').value });
+  report.resultats.console = { port: info.port, adresses: info.urls, annonce_wifi: info.advertised, erreur_annonce: info.advertise_error };
+  $('#addr').textContent = info.urls.length ? info.urls.join('   ou   ') : 'aucune adresse réseau trouvée : cet appareil est-il sur le Wi-Fi ?';
+  $('#consoleState').textContent = info.advertised ? 'Annoncée sur le Wi-Fi. Sur Windows, autorisez « Lems VJ Essais » en réseau privé si le pare-feu le demande.' : 'Annonce Wi-Fi impossible (' + info.advertise_error + ') : saisissez l’adresse ci-dessus sur l’écran.';
+  renderReport();
   timers.push(setInterval(async () => { const i = await call('console_info'); if (!i) return; $('#code').textContent = i.code.slice(0, 3) + ' ' + i.code.slice(3); const scr = i.peers.filter(p => p.connected); $('#peerCount').textContent = scr.length + ' appareil(s) connecté(s)'; report.resultats.appareils = i.peers; renderReport(); }, 1000));
 }
 async function launch() {
@@ -90,15 +96,23 @@ async function stopAll() {
 }
 
 function asScreen() { mode = 'screen'; $('#connectPanel').hidden = false; $('#consolePanel').hidden = true; report.resultats.role = 'écran'; $('#clockNote').textContent = "Horloge de la console, estimée par cet écran"; }
-async function discover() { const l = await call('discover', { timeoutMs: 4000 }); if (l.length) $('#url').value = l[0].url || ''; $('#connState').textContent = l.length ? 'Console trouvée : ' + l[0].name : 'Aucune console trouvée.'; }
+async function discover() {
+  $('#connState').textContent = 'Recherche…';
+  const l = await call('discover', { timeoutMs: 4000 });
+  report.resultats.recherche = l.length ? l.map(c => c.name + ' ' + (c.url || '')) : 'aucune console trouvée';
+  if (l.length) $('#url').value = l[0].url || '';
+  $('#connState').textContent = l.length ? 'Console trouvée : ' + l[0].name + '. Saisissez son code, puis « Se connecter ».' : 'Aucune console trouvée. Recopiez l’adresse affichée sur la console dans la case Adresse.';
+  renderReport();
+}
 async function connect() {
   if (!$('#url').value.trim()) { $('#connState').replaceChildren(el('span', { class: 'err' }, 'Saisissez l’adresse de la console, ou cliquez sur « Chercher la console ».')); return; }
   try {
     const name = await call('device_connect', { url: $('#url').value.trim(), code: $('#pin').value.trim(), name: $('#name').value, role: 'screen' });
+    report.resultats.connexion = 'connecté à ' + name; delete report.resultats.erreur_connexion; renderReport();
     $('#connState').textContent = 'Connecté à « ' + name + ' ». Attente des commandes de la console…';
     timers.push(setInterval(async () => { const s = await call('device_status'); if (s && s.offset_ms != null) { offset = s.offset_ms; report.resultats.horloge = s; renderReport(); } }, 500));
     timers.push(setInterval(pollCommands, 100));
-  } catch (e) { $('#connState').replaceChildren(el('span', { class: 'err' }, String(e))); }
+  } catch (e) { report.resultats.erreur_connexion = String(e); renderReport(); $('#connState').replaceChildren(el('span', { class: 'err' }, String(e))); }
 }
 async function pollCommands() {
   for (const m of await call('device_messages')) {

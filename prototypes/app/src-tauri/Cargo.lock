@@ -1955,6 +1955,7 @@ dependencies = [
  "futures-util",
  "hkdf",
  "hmac",
+ "if-addrs",
  "mdns-sd",
  "rand",
  "serde",

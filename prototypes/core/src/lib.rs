@@ -8,6 +8,7 @@
 //! Code de prototype : il sert à vérifier les risques de l'étape 2 du plan,
 //! pas à être livré tel quel.
 
+pub mod address;
 pub mod channel;
 pub mod clock;
 pub mod pairing;

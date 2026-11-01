@@ -5,12 +5,15 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use lems_core::address;
 use lems_core::discovery::{self, Advertiser, FoundConsole};
 use lems_core::net::{ConsoleServer, DeviceClient, PeerInfo};
 use lems_core::protocol::{Message, Role};
 
 /// Port d'écoute de la console (0 = un port libre au hasard).
-const CONSOLE_PORT: u16 = 48_700;
+const CONSOLE_PORT: u16 = address::DEFAULT_PORT;
+/// Au-delà, on considère que la console ne répond pas (pare-feu, autre réseau).
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
 
 #[derive(Default)]
 pub struct NetState {
@@ -28,10 +31,13 @@ pub struct ConsoleInfo {
     pub peers: Vec<PeerInfo>,
     pub advertised: bool,
     pub advertise_error: Option<String>,
+    /// Adresses à saisir à la main sur un appareil si la recherche ne trouve rien.
+    pub urls: Vec<String>,
 }
 
 fn info(server: &ConsoleServer, advertised: bool, advertise_error: Option<String>) -> ConsoleInfo {
-    ConsoleInfo { port: server.port, code: server.code(), peers: server.peers(), advertised, advertise_error }
+    let urls = address::local_addresses().into_iter().map(|ip| format!("ws://{ip}:{}", server.port)).collect();
+    ConsoleInfo { port: server.port, code: server.code(), peers: server.peers(), advertised, advertise_error, urls }
 }
 
 #[tauri::command]
@@ -109,7 +115,13 @@ fn parse_role(role: &str) -> Role {
 
 #[tauri::command]
 pub async fn device_connect(state: tauri::State<'_, NetState>, url: String, code: String, name: String, role: String) -> Result<String, String> {
-    let client = DeviceClient::connect(&url, &code, &name, parse_role(&role), 250).await.map_err(|e| e.to_string())?;
+    let url = address::normalize_console_url(&url).map_err(|e| format!("Adresse incorrecte : {e}"))?;
+    let attempt = DeviceClient::connect(&url, &code, &name, parse_role(&role), 250);
+    let client = match tokio::time::timeout(CONNECT_TIMEOUT, attempt).await {
+        Ok(Ok(c)) => c,
+        Ok(Err(e)) => return Err(address::explain_connect_error(&e.to_string())),
+        Err(_) => return Err(address::explain_connect_error(&format!("délai dépassé ({} s) vers {url}", CONNECT_TIMEOUT.as_secs()))),
+    };
     let client = Arc::new(client);
     let console_name = client.console_name.clone();
     let inbox = state.device_inbox.clone();

@@ -46,7 +46,8 @@ async function asConsole() {
     const info = await call('console_start', { name: $('#name').value });
     report.resultats.role = 'console';
     report.resultats.console = { port: info.port, annonce_wifi: info.advertised, erreur_annonce: info.advertise_error, demarrage_ms: Math.round(performance.now() - t0) };
-    $('#consoleState').textContent = `À l'écoute sur le port ${info.port}. ` + (info.advertised ? 'Annoncée sur le Wi-Fi.' : 'Annonce Wi-Fi impossible : ' + info.advertise_error);
+    report.resultats.console.adresses = info.urls;
+    $('#consoleState').textContent = `À l'écoute sur le port ${info.port}. ` + (info.advertised ? 'Annoncée sur le Wi-Fi.' : 'Annonce Wi-Fi impossible : ' + info.advertise_error) + (info.urls.length ? ' Adresse à saisir à la main si besoin : ' + info.urls.join(' ou ') : '');
     clearInterval(consoleTimer);
     consoleTimer = setInterval(refreshConsole, 1000);
     refreshConsole();
