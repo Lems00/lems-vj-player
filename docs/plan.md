@@ -135,3 +135,9 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 **Essai 4 — deuxième écran (v6)**
 - Écran externe 1920 × 1080 (échelle 1) détecté à côté de l'écran du MacBook Pro (2880 × 1800, échelle 2).
 - **La sortie s'ouvre bien sur l'écran externe**, en plein écran, en 0,1 s (constat visuel). Le rapport disait le contraire : la vérification lisait la position trop tôt, avant la fin de l'animation de macOS. v7 : vérification après l'animation, et placement en points de l'écran visé (écrans d'échelles différentes).
+
+**Essai 3 — découverte et appairage (Mac console + PC Windows, v6)**
+- **Premier échange réel entre deux appareils.** Console sur le Mac : démarrage en 20 ms, annonce Wi-Fi sans erreur. Le PC (« Win32 de test », 192.168.88.231) s'est appairé par code et reste connecté.
+- **Aller-retour réseau : 4 ms.** Écart d'horloge PC ↔ Mac : −351 ms, mesuré et compensable (base de l'essai 5).
+- À recueillir : le rapport côté PC (découverte automatique, durée d'appairage, mauvais code).
+- Petit défaut : « Se connecter » avec une adresse vide affiche une erreur technique (« HTTP format error ») ; à remplacer par un message clair.
