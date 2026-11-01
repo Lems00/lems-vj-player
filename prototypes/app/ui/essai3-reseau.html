@@ -22,7 +22,7 @@
 
   <section class="panel" id="devicePanel" hidden>
     <h2>Connexion à une console</h2>
-    <div class="row"><button class="solid" id="discover">Chercher les consoles (4 s)</button><span id="discoverState"></span></div>
+    <div class="row"><button class="solid" id="discover">Chercher les consoles</button><span id="discoverState"></span></div>
     <div id="found" class="row"></div>
     <div class="row"><label>Adresse <input id="url" class="mono" size="28" placeholder="ws://192.168.1.20:48700"></label>
       <label>Code <input id="pin" class="mono" size="8" maxlength="6" inputmode="numeric" placeholder="482913"></label>
@@ -81,6 +81,7 @@ async function discover() {
 }
 // L'adresse renvoyée par la recherche contient déjà ws:// ; FoundConsole.url est calculé côté Rust.
 async function connect() {
+  if (!$('#url').value.trim()) { $('#deviceState').replaceChildren(el('span', { class: 'err' }, 'Saisissez l’adresse de la console, ou cliquez sur « Chercher les consoles ».')); return; }
   const t0 = performance.now();
   $('#deviceState').textContent = 'Appairage…';
   try {

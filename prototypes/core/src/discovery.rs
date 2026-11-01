@@ -56,11 +56,15 @@ pub fn advertise(name: &str, port: u16) -> Result<Advertiser, mdns_sd::Error> {
     Ok(Advertiser { daemon, fullname })
 }
 
-/// Cherche les consoles pendant `timeout` (bloquant).
+/// Délai d'attente d'autres consoles une fois la première trouvée.
+const GRACE_AFTER_FIRST: Duration = Duration::from_millis(600);
+
+/// Cherche les consoles pendant `timeout` au plus (bloquant). S'arrête peu
+/// après la première réponse au lieu d'attendre tout le délai.
 pub fn browse(timeout: Duration) -> Result<Vec<FoundConsole>, mdns_sd::Error> {
     let daemon = ServiceDaemon::new()?;
     let rx = daemon.browse(SERVICE_TYPE)?;
-    let deadline = Instant::now() + timeout;
+    let mut deadline = Instant::now() + timeout;
     let mut found: Vec<FoundConsole> = vec![];
     while let Some(left) = deadline.checked_duration_since(Instant::now()) {
         match rx.recv_timeout(left) {
@@ -74,6 +78,9 @@ pub fn browse(timeout: Duration) -> Result<Vec<FoundConsole>, mdns_sd::Error> {
                 };
                 c.url = c.ws_url();
                 if !found.iter().any(|f| f.name == c.name && f.port == c.port) {
+                    if found.is_empty() {
+                        deadline = deadline.min(Instant::now() + GRACE_AFTER_FIRST);
+                    }
                     found.push(c);
                 }
             }
@@ -103,7 +110,9 @@ mod tests {
     #[ignore]
     fn annonce_puis_decouverte() {
         let _ad = advertise("Console de test", 4870).unwrap();
+        let started = Instant::now();
         let found = browse(Duration::from_secs(4)).unwrap();
+        assert!(started.elapsed() < Duration::from_millis(3500), "la recherche aurait dû s'arrêter tôt : {:?}", started.elapsed());
         assert!(found.iter().any(|c| c.name == "Console de test" && c.port == 4870 && c.url.is_some()), "{found:?}");
     }
 }

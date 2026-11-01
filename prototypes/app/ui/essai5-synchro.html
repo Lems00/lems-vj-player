@@ -92,6 +92,7 @@ async function stopAll() {
 function asScreen() { mode = 'screen'; $('#connectPanel').hidden = false; $('#consolePanel').hidden = true; report.resultats.role = 'écran'; $('#clockNote').textContent = "Horloge de la console, estimée par cet écran"; }
 async function discover() { const l = await call('discover', { timeoutMs: 4000 }); if (l.length) $('#url').value = l[0].url || ''; $('#connState').textContent = l.length ? 'Console trouvée : ' + l[0].name : 'Aucune console trouvée.'; }
 async function connect() {
+  if (!$('#url').value.trim()) { $('#connState').replaceChildren(el('span', { class: 'err' }, 'Saisissez l’adresse de la console, ou cliquez sur « Chercher la console ».')); return; }
   try {
     const name = await call('device_connect', { url: $('#url').value.trim(), code: $('#pin').value.trim(), name: $('#name').value, role: 'screen' });
     $('#connState').textContent = 'Connecté à « ' + name + ' ». Attente des commandes de la console…';
@@ -107,34 +108,61 @@ async function pollCommands() {
   }
 }
 
+// Correction de la dérive (v8) :
+// - écart > 1,5 s : saut dans la vidéo, en anticipant le temps que met le lecteur
+//   à sauter (appris à chaque saut) ;
+// - écart de 30 ms à 1,5 s : rattrapage doux à 1,05× ou 0,95× (seules vitesses
+//   fines acceptées par YouTube, essai 1), retour à 1× sous 10 ms ;
+// - après un saut, on laisse le lecteur se stabiliser avant de mesurer.
+const SYNC = { enter: 30, exit: 10, jump: 1500, settleMs: 1200, every: 250 };
+let seekLead = 0.25, signed = [], nudges = 0, timeOff1x = 0;
+
 // Démarre la lecture à `position` (s) à l'heure locale `localAt` (ms), puis corrige la dérive.
 async function startAt(position, localAt) {
-  drifts = []; corrections = 0;
+  drifts = []; signed = []; corrections = 0; nudges = 0; timeOff1x = 0;
   playing = { position, localAt };
   const lead = 600; // le lecteur met du temps à démarrer : on prépare un peu avant
   const wait = localAt - Date.now() - lead;
   if (wait > 0) await sleep(wait);
+  player.setPlaybackRate(1);
   player.seekTo(position + Math.max(0, Date.now() + lead - localAt) / 1000, true);
   player.pauseVideo();
   const w2 = localAt - Date.now(); if (w2 > 0) await sleep(w2);
   player.playVideo();
+  let rate = 1, settleUntil = Date.now() + SYNC.settleMs, checkSeek = false;
   const loop = setInterval(() => {
-    if (!playing) return clearInterval(loop);
+    if (!playing) { clearInterval(loop); return; }
     if (player.getPlayerState() !== YT.PlayerState.PLAYING) return;
-    const expected = playing.position + (Date.now() - playing.localAt) / 1000;
-    const drift = (player.getCurrentTime() - expected) * 1000;
-    drifts.push(Math.abs(drift));
-    if (Math.abs(drift) > 150) { corrections++; player.seekTo(expected + 0.25, true); }
+    const now = Date.now();
+    if (now < settleUntil) return;
+    const expected = playing.position + (now - playing.localAt) / 1000;
+    const d = (player.getCurrentTime() - expected) * 1000;   // > 0 : en avance
+    if (checkSeek) { seekLead = Math.min(1.5, Math.max(0, seekLead - d / 1000)); checkSeek = false; }
+    drifts.push(Math.abs(d)); signed.push(d);
+    if (rate !== 1) timeOff1x += SYNC.every;
+    if (Math.abs(d) > SYNC.jump) {
+      corrections++;
+      if (rate !== 1) { player.setPlaybackRate(1); rate = 1; }
+      player.seekTo(expected + seekLead, true);
+      settleUntil = now + SYNC.settleMs; checkSeek = true;
+    } else if (Math.abs(d) > SYNC.enter || (rate !== 1 && Math.abs(d) > SYNC.exit)) {
+      const want = d < 0 ? 1.05 : 0.95;
+      if (rate !== want) { player.setPlaybackRate(want); rate = want; nudges++; }
+    } else if (rate !== 1) { player.setPlaybackRate(1); rate = 1; }
     showStats();
-  }, 500);
+  }, SYNC.every);
   timers.push(loop);
 }
 function showStats() {
-  const recent = drifts.slice(-40);
-  const med = median(recent), p95 = percentile(recent, 0.95), max = recent.length ? Math.max(...recent) : null;
-  $('#sMed').textContent = fmt(med, 0) + ' ms'; $('#sP95').textContent = fmt(p95, 0) + ' ms'; $('#sMax').textContent = fmt(max, 0) + ' ms'; $('#sCorr').textContent = corrections; $('#sN').textContent = drifts.length;
-  report.resultats.video = { ecart_median_ms: med && Math.round(med), ecart_p95_ms: p95 && Math.round(p95), ecart_max_ms: max && Math.round(max), corrections, mesures: drifts.length };
-  if (drifts.length >= 40) { $('#verdict').hidden = false; $('#verdict').textContent = med < 80 ? 'Synchronisation suffisante pour un écran géant (écart médian < 80 ms).' : 'Écart trop grand : il faudra une autre méthode de correction.'; report.resultats.video.verdict = $('#verdict').textContent; }
+  const recent = drifts.slice(-80), recentSigned = signed.slice(-80);
+  const med = median(recent), p95 = percentile(recent, 0.95), max = recent.length ? Math.max(...recent) : null, smed = median(recentSigned);
+  $('#sMed').textContent = fmt(med, 0) + ' ms'; $('#sP95').textContent = fmt(p95, 0) + ' ms'; $('#sMax').textContent = fmt(max, 0) + ' ms'; $('#sCorr').textContent = corrections + ' saut(s) · ' + nudges + ' rattrapage(s) doux'; $('#sN').textContent = drifts.length;
+  report.resultats.video = { ecart_median_ms: med && Math.round(med), ecart_signe_median_ms: smed && Math.round(smed), ecart_p95_ms: p95 && Math.round(p95), ecart_max_ms: max && Math.round(max), sauts: corrections, rattrapages_doux: nudges, temps_hors_1x_s: +(timeOff1x / 1000).toFixed(1), anticipation_saut_apprise_s: +seekLead.toFixed(2), mesures: drifts.length };
+  if (drifts.length >= 60) {
+    $('#verdict').hidden = false;
+    $('#verdict').textContent = med < 40 ? 'Synchronisation fine atteinte (écart médian < 40 ms).' : med < 80 ? 'Synchronisation suffisante pour un écran géant (écart médian < 80 ms).' : 'Écart encore trop grand : il faudra une autre méthode de correction.';
+    report.resultats.video.verdict = $('#verdict').textContent;
+  }
   renderReport();
 }
 

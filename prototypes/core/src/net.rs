@@ -65,6 +65,9 @@ struct ConsoleState {
     wrong_codes: u32,
     peers: Vec<PeerInfo>,
     next_id: u64,
+    /// Signal d'arrêt de chaque connexion active, pour remplacer une ancienne
+    /// connexion du même appareil.
+    stops: std::collections::HashMap<u64, tokio::sync::oneshot::Sender<()>>,
 }
 
 /// La console : elle écoute, appaire, et diffuse ses commandes à tous.
@@ -81,7 +84,7 @@ impl ConsoleServer {
     pub async fn start(name: &str, bind: &str) -> std::io::Result<Self> {
         let listener = TcpListener::bind(bind).await?;
         let port = listener.local_addr()?.port();
-        let state = Arc::new(Mutex::new(ConsoleState { name: name.to_string(), code: generate_code(), wrong_codes: 0, peers: vec![], next_id: 1 }));
+        let state = Arc::new(Mutex::new(ConsoleState { name: name.to_string(), code: generate_code(), wrong_codes: 0, peers: vec![], next_id: 1, stops: Default::default() }));
         let (out, _) = broadcast::channel(256);
         let (in_tx, in_rx) = mpsc::channel(256);
         let server = Self { port, state: state.clone(), out: out.clone(), inbox: Arc::new(tokio::sync::Mutex::new(in_rx)) };
@@ -174,6 +177,21 @@ async fn handle_device(
         let mut s = state.lock().unwrap();
         let id = s.next_id;
         s.next_id += 1;
+        // Un appareil qui se reconnecte (même nom, même rôle, même adresse IP)
+        // remplace son ancienne connexion au lieu de s'y ajouter.
+        let ip = addr.ip().to_string();
+        let replaced: Vec<u64> = s
+            .peers
+            .iter()
+            .filter(|p| p.connected && p.name == dev_name && p.role == role && p.addr.rsplit_once(':').map(|(h, _)| h) == Some(ip.as_str()))
+            .map(|p| p.id)
+            .collect();
+        for old in &replaced {
+            if let Some(stop) = s.stops.remove(old) {
+                let _ = stop.send(());
+            }
+        }
+        s.peers.retain(|p| !replaced.contains(&p.id));
         s.peers.push(PeerInfo { id, name: dev_name, role, addr: addr.to_string(), connected: true, rtt_ms: None, offset_ms: None });
         // Un code ne sert qu'une fois.
         s.code = generate_code();
@@ -187,9 +205,15 @@ async fn handle_device(
     }
 
     // 2. Échanges chiffrés.
+    let (stop_tx, mut stop_rx) = tokio::sync::oneshot::channel::<()>();
+    state.lock().unwrap().stops.insert(id, stop_tx);
     let mut rx_out = out.subscribe();
     let result: Result<(), NetError> = loop {
         tokio::select! {
+            _ = &mut stop_rx => {
+                let _ = ws.close(None).await;
+                break Ok(());
+            }
             frame = ws.next() => {
                 let data = match frame {
                     Some(Ok(WsMsg::Binary(b))) => b,
@@ -226,6 +250,7 @@ async fn handle_device(
 
 fn mark_disconnected(state: &Arc<Mutex<ConsoleState>>, id: u64) {
     let mut s = state.lock().unwrap();
+    s.stops.remove(&id);
     if let Some(p) = s.peers.iter_mut().find(|p| p.id == id) {
         p.connected = false;
     }
@@ -423,6 +448,25 @@ mod tests {
         // L'ancien code, même juste, ne marche plus.
         let r = DeviceClient::connect(&url, &code, "Retardataire", Role::Controller, 50).await;
         assert!(r.is_err());
+    }
+
+    #[tokio::test]
+    async fn un_appareil_qui_se_reconnecte_remplace_son_ancienne_connexion() {
+        let c = console().await;
+        let url = format!("ws://127.0.0.1:{}", c.port);
+        let first = DeviceClient::connect(&url, &c.code(), "PC Salle", Role::Screen, 100).await.unwrap();
+        let _second = DeviceClient::connect(&url, &c.code(), "PC Salle", Role::Screen, 100).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let peers = c.peers();
+        assert_eq!(peers.len(), 1, "{peers:?}");
+        assert!(peers[0].connected);
+        // L'ancienne connexion a été fermée par la console.
+        let ended = tokio::time::timeout(Duration::from_secs(2), first.recv()).await;
+        assert!(matches!(ended, Ok(None)), "l'ancienne connexion devrait être fermée");
+        // Un autre appareil, lui, s'ajoute.
+        let _other = DeviceClient::connect(&url, &c.code(), "Tablette", Role::Controller, 100).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert_eq!(c.peers().len(), 2);
     }
 
     #[tokio::test]

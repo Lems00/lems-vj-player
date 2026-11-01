@@ -144,3 +144,11 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - Pages servies en `http://tauri.localhost` sur Windows : YouTube devrait y fonctionner sans le détour `http://localhost` du Mac (à confirmer par l'essai 1 sur PC).
 - Amélioration possible : la recherche dure toujours 4 s ; la faire s'arrêter dès qu'une console répond.
 - Petit défaut : « Se connecter » avec une adresse vide affiche une erreur technique (« HTTP format error ») ; à remplacer par un message clair.
+
+**Essai 5 — écran synchronisé (Mac console + PC écran, v6)**
+- **YouTube joue directement sur Windows** (`http://tauri.localhost`), sans le détour du Mac.
+- **Horloge** : le PC estime l'heure de la console de façon stable (écart −331 ms, aller-retour 3 ms, 32 mesures).
+- **Écart vidéo côté PC : constant, 139 à 140 ms** sur 72 mesures, 3 corrections. Un écart fixe est un défaut de calage, pas d'instabilité : la première méthode anticipait les sauts d'une durée fixe (0,25 s) et ne corrigeait qu'au-delà de 150 ms.
+- **Côté Mac (console, qui lit aussi la vidéo)** : la correction s'emballait (10 sauts en 16 s) — chaque saut prend 0,25 à 0,35 s, la mesure suivante voyait encore un écart et relançait un saut.
+- **v8** : rattrapage doux à 1,05× / 0,95× pour les écarts de 30 ms à 1,5 s ; saut seulement au-delà, avec une anticipation apprise ; stabilisation après chaque saut. Simulation d'un lecteur décalé de 140 ms au pas de vitesse YouTube : écart ramené à 1 ms (médiane) en 2,8 s, un seul rattrapage. **À confirmer sur vos appareils.**
+- **v8** : un appareil qui se reconnecte remplace son ancienne connexion (le PC était connecté 3 fois) ; la recherche s'arrête 0,6 s après la première console trouvée (au lieu de 4 s).
