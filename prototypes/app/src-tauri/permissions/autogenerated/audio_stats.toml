@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-audio-stats"
+description = "Enables the audio_stats command without any pre-configured scope."
+commands.allow = ["audio_stats"]
+
+[[permission]]
+identifier = "deny-audio-stats"
+description = "Denies the audio_stats command without any pre-configured scope."
+commands.deny = ["audio_stats"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-device-messages"
+description = "Enables the device_messages command without any pre-configured scope."
+commands.allow = ["device_messages"]
+
+[[permission]]
+identifier = "deny-device-messages"
+description = "Denies the device_messages command without any pre-configured scope."
+commands.deny = ["device_messages"]

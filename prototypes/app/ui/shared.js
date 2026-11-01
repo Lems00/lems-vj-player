@@ -1,4 +1,6 @@
 // Fonctions communes aux pages d'essai.
+// Numéro de version des essais : visible en haut de chaque page et dans chaque rapport.
+const ESSAIS_VERSION = 'essais v6';
 const TAURI = window.__TAURI__ && window.__TAURI__.core ? window.__TAURI__.core : null;
 const IN_APP = !!TAURI;
 
@@ -22,7 +24,7 @@ function percentile(a, p) { if (!a.length) return null; const s = [...a].sort((x
 function stddev(a) { if (a.length < 2) return null; const m = a.reduce((x, y) => x + y, 0) / a.length; return Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / (a.length - 1)); }
 
 // Rapport commun : chaque essai remplit `report`, l'utilisateur le copie.
-const report = { essai: document.title, date: new Date().toISOString(), environnement: {}, resultats: {} };
+const report = { essai: document.title, version: ESSAIS_VERSION, date: new Date().toISOString(), environnement: {}, resultats: {} };
 async function fillEnvironment() {
   report.environnement = { navigateur: navigator.userAgent, origine: location.origin, ecran: `${screen.width}×${screen.height} @${devicePixelRatio}`, application: IN_APP };
   if (IN_APP) { try { Object.assign(report.environnement, await call('platform_info')); } catch (e) { report.environnement.erreur = String(e); } }
@@ -42,4 +44,8 @@ function reportPanel() {
 function appOnlyNotice() {
   return IN_APP ? null : el('div', { class: 'note' }, "Ouvert dans un navigateur : cet essai a besoin de l'application d'essai (Mac, Windows ou Android). Voir le README des essais.");
 }
-window.addEventListener('DOMContentLoaded', fillEnvironment);
+window.addEventListener('DOMContentLoaded', () => {
+  const h = document.querySelector('header');
+  if (h) h.append(el('span', { class: 'mono', style: 'margin-left:auto;color:var(--ink-muted)' }, ESSAIS_VERSION + (location.origin.startsWith('http://localhost') ? ' · fenêtre B (http://localhost)' : '')));
+  fillEnvironment();
+});

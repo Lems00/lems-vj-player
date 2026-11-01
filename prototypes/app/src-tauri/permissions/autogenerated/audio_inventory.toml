@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-audio-inventory"
+description = "Enables the audio_inventory command without any pre-configured scope."
+commands.allow = ["audio_inventory"]
+
+[[permission]]
+identifier = "deny-audio-inventory"
+description = "Denies the audio_inventory command without any pre-configured scope."
+commands.deny = ["audio_inventory"]

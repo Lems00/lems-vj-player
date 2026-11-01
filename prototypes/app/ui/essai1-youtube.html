@@ -117,6 +117,10 @@ async function measureRate(i) {
   const ref = await effectiveSpeed(p, 1, 5);
   const up = await effectiveSpeed(p, 1.05, 5);
   const down = await effectiveSpeed(p, 0.98, 5);
+  // Pas de vitesse : quelles valeurs fines le lecteur accepte-t-il ?
+  const grid = [];
+  for (const r of [1.01, 1.02, 1.03, 1.04, 1.06, 1.1, 0.99, 0.97, 0.9]) { p.setPlaybackRate(r); await sleep(400); grid.push({ demandee: r, annoncee: p.getPlaybackRate() }); }
+  report.resultats.lecteurs[i].vitesses_fines = grid;
   p.setPlaybackRate(1);
   // Vitesse relative à la vitesse 1× mesurée, pour neutraliser la dérive propre du lecteur.
   const relUp = up.reelle / ref.reelle, relDown = down.reelle / ref.reelle;
