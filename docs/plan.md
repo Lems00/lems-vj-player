@@ -139,5 +139,8 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 **Essai 3 — découverte et appairage (Mac console + PC Windows, v6)**
 - **Premier échange réel entre deux appareils.** Console sur le Mac : démarrage en 20 ms, annonce Wi-Fi sans erreur. Le PC (« Win32 de test », 192.168.88.231) s'est appairé par code et reste connecté.
 - **Aller-retour réseau : 4 ms.** Écart d'horloge PC ↔ Mac : −351 ms, mesuré et compensable (base de l'essai 5).
-- À recueillir : le rapport côté PC (découverte automatique, durée d'appairage, mauvais code).
+- **Côté PC (Windows 10, WebView2 / Edge 156)** : **découverte automatique réussie** (le PC trouve le Mac sur le Wi-Fi), **appairage accepté en 0,12 s**, aller-retour 4 ms sur 32 mesures, écart d'horloge −347 ms (−351 ms vu du Mac : cohérent à 4 ms près).
+- Les autorisations « réseau local » de macOS et le pare-feu Windows n'ont rien bloqué.
+- Pages servies en `http://tauri.localhost` sur Windows : YouTube devrait y fonctionner sans le détour `http://localhost` du Mac (à confirmer par l'essai 1 sur PC).
+- Amélioration possible : la recherche dure toujours 4 s ; la faire s'arrêter dès qu'une console répond.
 - Petit défaut : « Se connecter » avec une adresse vide affiche une erreur technique (« HTTP format error ») ; à remplacer par un message clair.
