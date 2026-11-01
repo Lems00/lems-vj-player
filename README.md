@@ -6,5 +6,6 @@ Console DJ / VJ à quatre platines pour Mac, Windows et Android. Les sources son
 - **Maquettes** validées : [`docs/maquettes/`](docs/maquettes/) (les vues sont dans `vues/`).
 - **Design system** : https://claude.ai/artifact/XXxqwrzgihY5hSLKj1DRG1
 - **Essais techniques** (étape 2, code jetable) : [`prototypes/`](prototypes/), avec le mode d'emploi dans [`prototypes/README.md`](prototypes/README.md).
+- **Applications d'essai compilées** : onglet **Actions**, compilation « Essais — compilation », section *Artifacts*.
 
 État : étape 2. Les essais sont écrits ; ils restent à lancer sur de vrais appareils.

@@ -40,6 +40,26 @@ prototypes/
     └── src-tauri/        la partie Rust : son (cpal), réseau (lems-core), écrans
 ```
 
+## Le plus simple : télécharger les applications toutes prêtes
+
+GitHub compile l'application d'essai pour Mac, Windows et Android à chaque modification des essais. Pour lancer une compilation à la main : onglet **Actions** du dépôt → « Essais — compilation » → **Run workflow**.
+
+1. Ouvrez la dernière compilation réussie (coche verte) dans l'onglet **Actions**.
+2. En bas de la page, section **Artifacts**, téléchargez `essais-mac`, `essais-windows` ou `essais-android`. Ils restent disponibles 30 jours.
+
+Les applications **ne sont pas signées** : la signature viendra à l'étape 6 du plan. D'où les avertissements suivants au premier lancement.
+
+- **Mac** (processeurs Apple et Intel) : décompressez, puis glissez « Lems VJ Essais » dans Applications. Au premier lancement, macOS refuse d'ouvrir l'application : allez dans **Réglages Système → Confidentialité et sécurité**, puis cliquez sur **Ouvrir quand même**. Ou bien, dans le Terminal :
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Lems VJ Essais.app"
+```
+
+- **Windows** : lancez l'installateur. Si SmartScreen affiche « Windows a protégé votre ordinateur », cliquez sur **Informations complémentaires**, puis sur **Exécuter quand même**.
+- **Android** (téléphones et tablettes 64 bits, soit presque tous les modèles depuis 2017) : copiez le fichier `.apk` sur l'appareil et ouvrez-le. Android demandera d'autoriser l'installation depuis cette source.
+
+La suite de ce document sert à compiler vous-même, si vous le préférez.
+
 ## Préparer chaque système (une seule fois)
 
 Il faut d'abord **Node.js 20 ou plus récent** (https://nodejs.org) et **Rust** (https://rustup.rs).
