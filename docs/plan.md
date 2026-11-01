@@ -134,4 +134,4 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 
 **Essai 4 — deuxième écran (v6)**
 - Écran externe 1920 × 1080 (échelle 1) détecté à côté de l'écran du MacBook Pro (2880 × 1800, échelle 2).
-- La fenêtre s'ouvre en 0,1 s et passe en plein écran, mais **pas sur l'écran demandé**. Cause probable : position donnée en pixels physiques alors que les écrans n'ont pas la même échelle, et plein écran demandé avant que la fenêtre soit posée. Correctif v7 : position en points de l'écran visé, plein écran seulement une fois la fenêtre posée.
+- **La sortie s'ouvre bien sur l'écran externe**, en plein écran, en 0,1 s (constat visuel). Le rapport disait le contraire : la vérification lisait la position trop tôt, avant la fin de l'animation de macOS. v7 : vérification après l'animation, et placement en points de l'écran visé (écrans d'échelles différentes).
