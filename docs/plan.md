@@ -164,3 +164,11 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - Conséquence : les deux écrans étaient chacun près de leur cible, mais **décalés d'environ 130 ms entre eux**, parce que la cible (l'horloge théorique) n'était pas ce que la console jouait.
 - **v10 : la console est la référence.** Elle ne se corrige plus ; elle diffuse sa position réelle deux fois par seconde (nouveau message `position` du protocole) ; les écrans suivent cette lecture réelle (médiane des 8 derniers relevés, remise à zéro si la console saute). Simulation d'une console en retard de 130 ms : l'écran prend le même retard (−125 ms sur l'horloge) et reste à 10 ms médian de la console. **À confirmer sur vos appareils, avec la vidéo des mires.**
 
+
+**Essai 5 en v10 (Mac console + PC écran) : réussi.**
+- **PC (écran) : 5 ms d'écart médian avec la lecture réelle du Mac** (p95 6 ms, max 6 ms), sur 411 mesures et 201 positions reçues ; aucun saut, 3 rattrapages doux au démarrage (13 s hors 1×), puis plus rien. **Objectif atteint : l'écran suit la console.**
+- **Mac (console, sans correction) : lecture parfaitement régulière** — 600 à 602 ms de retard constant sur l'horloge théorique, sur 101 relevés. Ce retard fixe est le temps que met le lecteur du Mac à repartir après la mise en place (pause, puis lecture) ; il ne dérive pas.
+- **Enseignement : la dérive du Mac en v9 venait de ses propres corrections** (chaque changement de vitesse arrête le lecteur environ 0,2 s, cf. essai 1). → **Règle pour l'application : ne jamais changer la vitesse ni sauter dans une platine YouTube à l'antenne pour la synchroniser ; la console est la référence, seuls les écrans se corrigent.**
+- Écart d'horloge PC ↔ Mac : −303 ms (−339 ms la veille) : les horloges dérivent d'un jour à l'autre, la mesure continue est indispensable.
+- Petits défauts : la recherche automatique n'a pas trouvé le Mac cette fois (elle l'avait trouvé en v6 et v9) — l'adresse saisie à la main a servi ; à fiabiliser (recherche plus longue, nouvel essai automatique). Un second clic sur « Se connecter » après la connexion a produit « code incorrect » sans couper la connexion : bouton à désactiver une fois connecté.
+- Reste à confirmer à l'œil : vidéo des deux lecteurs filmés côte à côte.
