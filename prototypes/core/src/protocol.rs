@@ -61,6 +61,10 @@ pub enum Message {
     /// Lire à partir de `position` (secondes) à l'instant `at` (horloge console, ms).
     Play { deck: Deck, position: f64, at: i64 },
     Pause { deck: Deck, position: f64 },
+    /// Position réellement jouée par la platine de la console : `position` (s)
+    /// à l'instant `at` (horloge console, ms). Les écrans suivent cette lecture
+    /// réelle plutôt que l'horloge théorique.
+    Position { deck: Deck, position: f64, at: i64 },
     Volume { deck: Deck, value: f32 },
     Crossfader { left: Deck, right: Deck, value: f32 },
     Status { text: String },
@@ -87,6 +91,7 @@ mod tests {
             Message::Load { deck: Deck::C, source: Source::File { name: "lagune.mp4".into(), sha256: "ab12".into() } },
             Message::Crossfader { left: Deck::A, right: Deck::B, value: -0.6 },
             Message::Pong { t0: 1, t1: 2, t2: 3 },
+            Message::Position { deck: Deck::A, position: 31.25, at: 1_700_000_001_000 },
         ];
         for m in msgs {
             let back = Message::from_json(&m.to_json()).unwrap();

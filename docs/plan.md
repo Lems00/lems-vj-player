@@ -156,3 +156,11 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 **Essai 5 en v8 (PC console, Mac écran) : pas de connexion.** Le Mac ne trouve pas le PC (« Aucune console trouvée »), alors que le PC trouvait le Mac à l'essai 3. Cause probable : le pare-feu Windows bloque l'annonce et les connexions entrantes vers le PC. L'adresse saisie à la main contenait un point à la place des deux-points (`…231.48700`), d'où « failed to lookup address ».
 
 - **v9** : la console affiche ses adresses (`ws://IP:48700`) sur la page de l'essai 5 et dans les rapports ; l'adresse saisie est corrigée (point au lieu des deux-points, sans `ws://`, sans port) ; la connexion abandonne après 8 s ; les erreurs disent la cause probable (adresse mal écrite, rien n'écoute, pare-feu, autre réseau, code) ; le rapport de l'écran garde la recherche et l'erreur de connexion.
+
+**Essai 5 en v9 (Mac console + PC écran) : connexion réussie, premier écran synchronisé.**
+- Connexion par la recherche automatique ; aller-retour 2 à 3 ms ; écart d'horloge −339 ms, identique des deux côtés à 0,3 ms près.
+- **PC (écran) : écart médian de 4 ms avec l'horloge de la console** (p95 4 ms), 1 saut et 1 rattrapage doux au démarrage, puis plus rien. **Synchronisation fine atteinte.**
+- **Mac (console, qui se corrigeait lui aussi sur son horloge) : 128 ms de retard médian** (p95 253 ms, max 425 ms), à 1,05× pendant 111 s sur 113 sans rattraper. Le lecteur du Mac perd du temps en continu (même constat qu'à l'essai 1 : jusqu'à 250 ms par 10 s selon la charge, arrêt d'environ 0,2 s à chaque changement de vitesse).
+- Conséquence : les deux écrans étaient chacun près de leur cible, mais **décalés d'environ 130 ms entre eux**, parce que la cible (l'horloge théorique) n'était pas ce que la console jouait.
+- **v10 : la console est la référence.** Elle ne se corrige plus ; elle diffuse sa position réelle deux fois par seconde (nouveau message `position` du protocole) ; les écrans suivent cette lecture réelle (médiane des 8 derniers relevés, remise à zéro si la console saute). Simulation d'une console en retard de 130 ms : l'écran prend le même retard (−125 ms sur l'horloge) et reste à 10 ms médian de la console. **À confirmer sur vos appareils, avec la vidéo des mires.**
+

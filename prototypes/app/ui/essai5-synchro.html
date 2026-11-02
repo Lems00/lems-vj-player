@@ -12,7 +12,7 @@
 <main>
   <section class="panel">
     <h2>Ce que l'essai vérifie</h2>
-    <p>La console envoie des commandes, pas de la vidéo. Chaque écran lit lui-même la vidéo, calé sur l'horloge de la console. On mesure l'écart de deux façons : <b>la mire</b> (le carré s'allume à chaque seconde de l'horloge console ; filmez les deux écrans côte à côte avec un téléphone, puis comparez image par image) et <b>la vidéo YouTube</b> (l'écran corrige sa position et compte les corrections).</p>
+    <p>La console envoie des commandes, pas de la vidéo. Chaque écran lit lui-même la vidéo et suit la lecture réelle de la console, qui diffuse sa position deux fois par seconde (v10). On mesure l'écart de deux façons : <b>la mire</b> (le carré s'allume à chaque seconde de l'horloge console ; filmez les deux écrans côte à côte avec un téléphone, puis comparez image par image) et <b>la vidéo YouTube</b> (l'écran corrige sa position et compte les corrections).</p>
     <div class="row"><label>Nom <input id="name" size="24"></label><button class="solid" id="asConsole">Cet appareil est la console</button><button id="asScreen">Cet appareil est un écran</button></div>
   </section>
   <section class="panel" id="connectPanel" hidden>
@@ -87,8 +87,9 @@ async function launch() {
   await call('console_broadcast', { message: JSON.stringify({ type: 'play', deck: 'a', position, at }) });
   report.resultats.lancement = { video, position, at };
   renderReport();
-  // La console lit aussi la vidéo, pour comparer à l'œil.
-  try { await ensurePlayer(video); startAt(position, at); } catch (e) { $('#notice').replaceChildren(el('p', { class: 'err' }, e.message)); }
+  // La console lit la vidéo sans se corriger : c'est elle la référence.
+  // Elle diffuse sa position réelle ; les écrans suivent cette lecture.
+  try { await ensurePlayer(video); startAt(position, at, true); } catch (e) { $('#notice').replaceChildren(el('p', { class: 'err' }, e.message)); }
 }
 async function stopAll() {
   if (mode === 'console') await call('console_broadcast', { message: JSON.stringify({ type: 'pause', deck: 'a', position: 0 }) });
@@ -118,11 +119,12 @@ async function pollCommands() {
   for (const m of await call('device_messages')) {
     if (m.type === 'load' && m.source && m.source.kind === 'youtube') await ensurePlayer(m.source.video_id);
     else if (m.type === 'play') startAt(m.position, m.at - offset);
+    else if (m.type === 'position') followConsole(m);
     else if (m.type === 'pause') { playing = null; player && player.pauseVideo(); }
   }
 }
 
-// Correction de la dérive (v8) :
+// Correction de la dérive (v8, cible v10 : la lecture réelle de la console) :
 // - écart > 1,5 s : saut dans la vidéo, en anticipant le temps que met le lecteur
 //   à sauter (appris à chaque saut) ;
 // - écart de 30 ms à 1,5 s : rattrapage doux à 1,05× ou 0,95× (seules vitesses
@@ -130,11 +132,23 @@ async function pollCommands() {
 // - après un saut, on laisse le lecteur se stabiliser avant de mesurer.
 const SYNC = { enter: 30, exit: 10, jump: 1500, settleMs: 1200, every: 250 };
 let seekLead = 0.25, signed = [], nudges = 0, timeOff1x = 0;
+// Suivi de la lecture réelle de la console (v10) : base = position − heure (s),
+// filtrée par une médiane des derniers relevés ; remise à zéro si la console saute.
+let baseSamples = [], positionsRecues = 0;
+function followConsole(m) {
+  if (!playing) return;
+  const b = m.position - (m.at - offset) / 1000;
+  const cur = median(baseSamples);
+  if (cur != null && Math.abs(b - cur) > 1) baseSamples = [];
+  baseSamples.push(b); if (baseSamples.length > 8) baseSamples.shift();
+  playing.base = median(baseSamples);
+  positionsRecues++;
+}
 
 // Démarre la lecture à `position` (s) à l'heure locale `localAt` (ms), puis corrige la dérive.
-async function startAt(position, localAt) {
-  drifts = []; signed = []; corrections = 0; nudges = 0; timeOff1x = 0;
-  playing = { position, localAt };
+async function startAt(position, localAt, master = false) {
+  drifts = []; signed = []; corrections = 0; nudges = 0; timeOff1x = 0; baseSamples = []; positionsRecues = 0;
+  playing = { position, localAt, base: position - localAt / 1000 };
   const lead = 600; // le lecteur met du temps à démarrer : on prépare un peu avant
   const wait = localAt - Date.now() - lead;
   if (wait > 0) await sleep(wait);
@@ -143,13 +157,14 @@ async function startAt(position, localAt) {
   player.pauseVideo();
   const w2 = localAt - Date.now(); if (w2 > 0) await sleep(w2);
   player.playVideo();
+  if (master) { masterLoop(); return; }
   let rate = 1, settleUntil = Date.now() + SYNC.settleMs, checkSeek = false;
   const loop = setInterval(() => {
     if (!playing) { clearInterval(loop); return; }
     if (player.getPlayerState() !== YT.PlayerState.PLAYING) return;
     const now = Date.now();
     if (now < settleUntil) return;
-    const expected = playing.position + (now - playing.localAt) / 1000;
+    const expected = now / 1000 + playing.base;
     const d = (player.getCurrentTime() - expected) * 1000;   // > 0 : en avance
     if (checkSeek) { seekLead = Math.min(1.5, Math.max(0, seekLead - d / 1000)); checkSeek = false; }
     drifts.push(Math.abs(d)); signed.push(d);
@@ -167,11 +182,28 @@ async function startAt(position, localAt) {
   }, SYNC.every);
   timers.push(loop);
 }
+// Console : diffuse sa position toutes les 500 ms et mesure, pour information,
+// son retard sur l'horloge théorique (sans le corriger).
+function masterLoop() {
+  const lags = [];
+  const loop = setInterval(async () => {
+    if (!playing) { clearInterval(loop); return; }
+    if (player.getPlayerState() !== YT.PlayerState.PLAYING) return;
+    const now = Date.now(), pos = player.getCurrentTime();
+    await call('console_broadcast', { message: JSON.stringify({ type: 'position', deck: 'a', position: pos, at: now }) });
+    const lag = (pos - (now / 1000 + playing.base)) * 1000; lags.push(lag);
+    const r = lags.slice(-120);
+    report.resultats.lecture_console = { positions_envoyees: lags.length, ecart_horloge_median_ms: Math.round(median(r)), ecart_horloge_min_ms: Math.round(Math.min(...r)), ecart_horloge_max_ms: Math.round(Math.max(...r)), note: 'Information seulement : la console ne se corrige pas, les écrans la suivent.' };
+    $('#sMed').textContent = '—'; $('#sCorr').textContent = 'référence (pas de correction)'; $('#sN').textContent = lags.length + ' position(s) envoyée(s)';
+    renderReport();
+  }, 500);
+  timers.push(loop);
+}
 function showStats() {
   const recent = drifts.slice(-80), recentSigned = signed.slice(-80);
   const med = median(recent), p95 = percentile(recent, 0.95), max = recent.length ? Math.max(...recent) : null, smed = median(recentSigned);
   $('#sMed').textContent = fmt(med, 0) + ' ms'; $('#sP95').textContent = fmt(p95, 0) + ' ms'; $('#sMax').textContent = fmt(max, 0) + ' ms'; $('#sCorr').textContent = corrections + ' saut(s) · ' + nudges + ' rattrapage(s) doux'; $('#sN').textContent = drifts.length;
-  report.resultats.video = { ecart_median_ms: med && Math.round(med), ecart_signe_median_ms: smed && Math.round(smed), ecart_p95_ms: p95 && Math.round(p95), ecart_max_ms: max && Math.round(max), sauts: corrections, rattrapages_doux: nudges, temps_hors_1x_s: +(timeOff1x / 1000).toFixed(1), anticipation_saut_apprise_s: +seekLead.toFixed(2), mesures: drifts.length };
+  report.resultats.video = { ecart_median_ms: med && Math.round(med), ecart_signe_median_ms: smed && Math.round(smed), ecart_p95_ms: p95 && Math.round(p95), ecart_max_ms: max && Math.round(max), sauts: corrections, rattrapages_doux: nudges, temps_hors_1x_s: +(timeOff1x / 1000).toFixed(1), anticipation_saut_apprise_s: +seekLead.toFixed(2), mesures: drifts.length, reference: positionsRecues ? 'lecture réelle de la console' : 'horloge théorique (aucune position reçue)', positions_recues: positionsRecues };
   if (drifts.length >= 60) {
     $('#verdict').hidden = false;
     $('#verdict').textContent = med < 40 ? 'Synchronisation fine atteinte (écart médian < 40 ms).' : med < 80 ? 'Synchronisation suffisante pour un écran géant (écart médian < 80 ms).' : 'Écart encore trop grand : il faudra une autre méthode de correction.';
