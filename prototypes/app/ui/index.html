@@ -18,6 +18,13 @@
 <script>
 window.addEventListener('DOMContentLoaded', async () => {
   const n = appOnlyNotice(); if (n) $('#notice').append(n);
+  if (IN_APP) call('last_crash').then(t => {
+    if (!t) return;
+    report.resultats = { dernier_plantage: t };
+    $('#notice').append(el('section', { class: 'panel' }, el('h2', null, 'L’application s’est arrêtée la dernière fois'),
+      el('p', null, 'Copiez ce rapport et envoyez-le dans la conversation : il dit où et pourquoi.'),
+      el('div', { class: 'row' }, el('button', { class: 'solid', onclick: copyReport }, 'Copier le rapport')), el('pre', null, t)));
+  }).catch(() => {});
   if (IN_APP) { try { const p = await call('platform_info'); $('#env').textContent = `${p.os} · ${p.arch} · v${p.app_version}`; } catch (e) {} }
   else $('#env').textContent = 'navigateur';
 });

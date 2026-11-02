@@ -23,6 +23,7 @@ const COMMANDS: &[&str] = &[
     "open_output",
     "close_output",
     "open_http_page",
+    "last_crash",
 ];
 
 fn main() {

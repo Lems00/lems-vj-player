@@ -34,6 +34,7 @@
     "allow-list-monitors",
     "allow-open-output",
     "allow-close-output",
-    "allow-open-http-page"
+    "allow-open-http-page",
+    "allow-last-crash"
   ]
 }

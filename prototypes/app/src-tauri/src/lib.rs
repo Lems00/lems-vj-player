@@ -15,6 +15,37 @@ mod screens;
 /// pour comparer le comportement du lecteur YouTube selon l'origine.
 pub const LOCALHOST_PORT: u16 = 14870;
 
+/// Fichier où l'on note le dernier plantage, pour l'afficher au lancement
+/// suivant : sur Android, l'utilisateur n'a pas accès aux journaux du système.
+static CRASH_FILE: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+
+fn install_crash_log() {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if let Some(path) = CRASH_FILE.get() {
+            let thread = std::thread::current().name().unwrap_or("?").to_string();
+            let text = format!(
+                "version {}, {} {}\nfil « {thread} »\n{info}\n\n{}",
+                env!("CARGO_PKG_VERSION"),
+                std::env::consts::OS,
+                std::env::consts::ARCH,
+                std::backtrace::Backtrace::force_capture()
+            );
+            let _ = std::fs::write(path, text);
+        }
+        default_hook(info);
+    }));
+}
+
+/// Rend le dernier plantage noté (et l'efface), ou rien.
+#[tauri::command]
+fn last_crash() -> Option<String> {
+    let path = CRASH_FILE.get()?;
+    let text = std::fs::read_to_string(path).ok()?;
+    let _ = std::fs::remove_file(path);
+    Some(text)
+}
+
 #[tauri::command]
 fn platform_info() -> serde_json::Value {
     serde_json::json!({
@@ -27,9 +58,17 @@ fn platform_info() -> serde_json::Value {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    install_crash_log();
     tauri::Builder::default()
         .plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build())
         .setup(|app| {
+            {
+                use tauri::Manager;
+                if let Ok(dir) = app.path().app_data_dir() {
+                    let _ = std::fs::create_dir_all(&dir);
+                    let _ = CRASH_FILE.set(dir.join("dernier-plantage.txt"));
+                }
+            }
             // Sur Mac, la fenêtre principale a pour adresse tauri://localhost, et
             // YouTube y refuse ses lecteurs (erreur 153, essai 1 du 1er novembre).
             // On y sert donc les pages en http://localhost, comme la variante B.
@@ -41,14 +80,13 @@ pub fn run() {
                     main.navigate(url.parse().expect("adresse locale valide"))?;
                 }
             }
-            #[cfg(mobile)]
-            let _ = app;
             Ok(())
         })
         .manage(audio::AudioState::default())
         .manage(network::NetState::default())
         .invoke_handler(tauri::generate_handler![
             platform_info,
+            last_crash,
             audio::audio_devices,
             audio::audio_inventory,
             audio::audio_start,

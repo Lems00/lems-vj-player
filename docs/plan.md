@@ -172,3 +172,6 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - Écart d'horloge PC ↔ Mac : −303 ms (−339 ms la veille) : les horloges dérivent d'un jour à l'autre, la mesure continue est indispensable.
 - Petits défauts : la recherche automatique n'a pas trouvé le Mac cette fois (elle l'avait trouvé en v6 et v9) — l'adresse saisie à la main a servi ; à fiabiliser (recherche plus longue, nouvel essai automatique). Un second clic sur « Se connecter » après la connexion a produit « code incorrect » sans couper la connexion : bouton à désactiver une fois connecté.
 - Reste à confirmer à l'œil : vidéo des deux lecteurs filmés côte à côte.
+
+**Android (v10) : l'APK ne fonctionne pas.** Il s'installe mais ne marche pas, avec un message de débogage que l'utilisateur n'a pas pu récupérer ; plus de 100 Mo une fois installé. Cause de la taille : APK de **débogage** (code non optimisé, symboles de débogage). Cause de l'arrêt : inconnue sans journal.
+- **v11** : APK **optimisé** (version de publication, symboles retirés), pour appareils **64 et 32 bits**, signé avec une clé de test fixe (les versions suivantes s'installent par-dessus) ; un **plantage est noté dans un fichier** et affiché au lancement suivant, avec un bouton « Copier le rapport ».

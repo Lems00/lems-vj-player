@@ -20,3 +20,8 @@ serde_json = "1.0"
 tokio = { version = "1.40", features = ["sync", "time", "rt"] }
 cpal = "0.15"
 lems-core = { path = "../../core" }
+
+# Versions publiées des essais : optimisées et sans symboles de débogage
+# (l'APK Android passait de plus de 100 Mo une fois installé).
+[profile.release]
+strip = true

@@ -133,7 +133,7 @@ jobs:
           cache-dependency-path: prototypes/app/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: prototypes/app/src-tauri -> target
@@ -143,13 +143,27 @@ jobs:
       - name: Projet Android
         working-directory: prototypes/app
         run: npm run tauri -- android init --ci
-      - name: Compilation (téléphones 64 bits)
+      # Version optimisée (et non de débogage) pour les appareils 64 et 32 bits.
+      - name: Compilation (téléphones et tablettes 64 et 32 bits)
         working-directory: prototypes/app
-        run: npm run tauri -- android build --ci --apk --debug --target aarch64
+        run: npm run tauri -- android build --ci --apk --target aarch64 armv7
+      # Signature avec une clé de test fixe (prototypes/app/android/README.md) :
+      # chaque nouvelle version s'installe par-dessus la précédente.
+      - name: Signature de l'APK
+        working-directory: prototypes/app
+        run: |
+          BT="$ANDROID_HOME/build-tools/34.0.0"
+          IN="$(ls src-tauri/gen/android/app/build/outputs/apk/universal/release/*.apk | head -1)"
+          echo "APK non signé : $IN ($(du -h "$IN" | cut -f1))"
+          "$BT/zipalign" -f -p 4 "$IN" aligned.apk
+          "$BT/apksigner" sign --ks android/essais-test.jks --ks-pass pass:lems-essais --ks-key-alias essais --key-pass pass:lems-essais --out lems-vj-essais.apk aligned.apk
+          "$BT/apksigner" verify --print-certs lems-vj-essais.apk
+          unzip -l lems-vj-essais.apk | grep '\.so$'
+          du -h lems-vj-essais.apk
       - name: Déposer le fichier Android
         uses: actions/upload-artifact@v5
         with:
           name: essais-android
-          path: prototypes/app/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          path: prototypes/app/lems-vj-essais.apk
           if-no-files-found: error
           retention-days: 30
