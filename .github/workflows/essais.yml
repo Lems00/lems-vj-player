@@ -161,6 +161,7 @@ jobs:
           unzip -l lems-vj-essais.apk | grep '\.so$'
       # Le lancement échouait sur un symbole C++ manquant : on vérifie, pour
       # chaque processeur, qu'aucun symbole du moteur C++ ne reste à trouver.
+      # (Les symboles marqués @LIBC, comme __cxa_atexit, sont fournis par Android.)
       - name: Vérification des bibliothèques natives
         working-directory: prototypes/app
         run: |
@@ -168,7 +169,7 @@ jobs:
           rm -rf so && mkdir so && unzip -q -o lems-vj-essais.apk 'lib/*' -d so
           status=0
           for f in so/lib/*/*.so; do
-            missing="$("$NM" -D --undefined-only "$f" | awk '{print $NF}' | grep -E '^(__cxa_|__gxx_|_ZN?St|_Znw|_Zna|_ZdlPv|_ZdaPv|_ZTV|_ZTI)' || true)"
+            missing="$("$NM" -D --undefined-only "$f" | awk '{print $NF}' | grep -v '@LIBC' | grep -E '^(__cxa_|__gxx_|_ZN?St|_Znw|_Zna|_ZdlPv|_ZdaPv|_ZTV|_ZTI)' || true)"
             if [ -n "$missing" ]; then echo "::error::$f : symboles C++ introuvables au lancement :"; echo "$missing"; status=1; else echo "$f : aucun symbole C++ manquant"; fi
           done
           exit $status
