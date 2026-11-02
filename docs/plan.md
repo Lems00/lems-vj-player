@@ -175,3 +175,6 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 
 **Android (v10) : l'APK ne fonctionne pas.** Il s'installe mais ne marche pas, avec un message de débogage que l'utilisateur n'a pas pu récupérer ; plus de 100 Mo une fois installé. Cause de la taille : APK de **débogage** (code non optimisé, symboles de débogage). Cause de l'arrêt : inconnue sans journal.
 - **v11** : APK **optimisé** (version de publication, symboles retirés), pour appareils **64 et 32 bits**, signé avec une clé de test fixe (les versions suivantes s'installent par-dessus) ; un **plantage est noté dans un fichier** et affiché au lancement suivant, avec un bouton « Copier le rapport ».
+
+**Essai 5, deuxième passage en v10 : la vidéo n'a pas démarré sur la console.** Le Mac n'a envoyé aucune position (aucune lecture constatée) ; le PC n'a fait que 7 mesures, sur l'horloge théorique, avec 383 ms de retard. Le rapport ne disait pas pourquoi. Un « code incorrect » apparaît de nouveau après une connexion réussie (second clic sur « Se connecter »).
+- **v12** : le rapport garde l'état du lecteur YouTube (chargement, lecture, pause…) et ses erreurs (vidéo privée, intégration refusée, adresse refusée…) ; la console prévient si la vidéo ne démarre pas 5 s après l'heure prévue et invite à cliquer dessus ; « Se connecter » est désactivé pendant et après la connexion.

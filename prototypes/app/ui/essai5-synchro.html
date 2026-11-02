@@ -52,10 +52,18 @@ function loadApi() {
     const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; s.onerror = () => reject(new Error("API YouTube indisponible")); document.head.append(s);
   });
 }
+// Ce que fait le lecteur YouTube, gardé dans le rapport (v12) : sans cela, une
+// vidéo qui ne démarre pas laisse un rapport vide, sans explication.
+const ETATS = { '-1': 'non démarrée', 0: 'terminée', 1: 'en lecture', 2: 'en pause', 3: 'en chargement', 5: 'prête' };
+const ERREURS_YT = { 2: 'identifiant de vidéo invalide', 5: 'lecteur HTML5 en erreur', 100: 'vidéo introuvable ou privée', 101: 'intégration refusée par l’auteur', 150: 'intégration refusée par l’auteur', 153: 'adresse de la page refusée par YouTube' };
+const lecteur = { etat: 'absent', historique: [], erreurs: [] };
+function noteLecteur(texte) { lecteur.historique.push(new Date().toLocaleTimeString() + ' ' + texte); if (lecteur.historique.length > 30) lecteur.historique.shift(); report.resultats.lecteur = lecteur; renderReport(); }
+function onPlayerState(e) { lecteur.etat = ETATS[e.data] || String(e.data); noteLecteur(lecteur.etat); }
+function onPlayerError(e) { const t = 'erreur ' + e.data + ' : ' + (ERREURS_YT[e.data] || 'inconnue'); lecteur.erreurs.push(t); noteLecteur(t); $('#notice').replaceChildren(el('p', { class: 'err' }, 'YouTube : ' + t)); }
 async function ensurePlayer(videoId) {
   await loadApi();
   if (player && player.loadVideoById) { player.cueVideoById(videoId); return; }
-  await new Promise(res => { player = new YT.Player('player', { width: 640, height: 360, videoId, playerVars: { playsinline: 1, rel: 0, origin: location.origin }, events: { onReady: res } }); });
+  await new Promise(res => { player = new YT.Player('player', { width: 640, height: 360, videoId, playerVars: { playsinline: 1, rel: 0, origin: location.origin }, events: { onReady: res, onStateChange: onPlayerState, onError: onPlayerError } }); });
 }
 
 // Heure de la console, vue depuis cet appareil.
@@ -107,13 +115,14 @@ async function discover() {
 }
 async function connect() {
   if (!$('#url').value.trim()) { $('#connState').replaceChildren(el('span', { class: 'err' }, 'Saisissez l’adresse de la console, ou cliquez sur « Chercher la console ».')); return; }
+  $('#connect').disabled = true; $('#connState').textContent = 'Connexion…';
   try {
     const name = await call('device_connect', { url: $('#url').value.trim(), code: $('#pin').value.trim(), name: $('#name').value, role: 'screen' });
     report.resultats.connexion = 'connecté à ' + name; delete report.resultats.erreur_connexion; renderReport();
     $('#connState').textContent = 'Connecté à « ' + name + ' ». Attente des commandes de la console…';
     timers.push(setInterval(async () => { const s = await call('device_status'); if (s && s.offset_ms != null) { offset = s.offset_ms; report.resultats.horloge = s; renderReport(); } }, 500));
     timers.push(setInterval(pollCommands, 100));
-  } catch (e) { report.resultats.erreur_connexion = String(e); renderReport(); $('#connState').replaceChildren(el('span', { class: 'err' }, String(e))); }
+  } catch (e) { $('#connect').disabled = false; report.resultats.erreur_connexion = String(e); renderReport(); $('#connState').replaceChildren(el('span', { class: 'err' }, String(e))); }
 }
 async function pollCommands() {
   for (const m of await call('device_messages')) {
@@ -186,6 +195,12 @@ async function startAt(position, localAt, master = false) {
 // son retard sur l'horloge théorique (sans le corriger).
 function masterLoop() {
   const lags = [];
+  setTimeout(() => {
+    if (playing && !lags.length) {
+      noteLecteur('ne démarre pas 5 s après l’heure prévue (état : ' + lecteur.etat + ')');
+      $('#notice').replaceChildren(el('p', { class: 'err' }, 'La vidéo ne démarre pas sur la console (état : ' + lecteur.etat + '). Cliquez sur la vidéo pour la lancer : les écrans suivront.'));
+    }
+  }, 5000);
   const loop = setInterval(async () => {
     if (!playing) { clearInterval(loop); return; }
     if (player.getPlayerState() !== YT.PlayerState.PLAYING) return;
