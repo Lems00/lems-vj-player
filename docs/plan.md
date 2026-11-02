@@ -187,3 +187,14 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - **Android v12** : APK optimisé de 8 Mo (au lieu de 44 Mo compressés), 64 et 32 bits, signé avec la clé de test.
 - **v13** : lecture relancée automatiquement si le lecteur reste « non démarré » (jusqu'à 4 fois) ; lecteur de la console préparé dès le choix du rôle ; recherche en 3 tentatives ; l'écran retient la dernière adresse de console qui a fonctionné.
 - Pour l'application : Tauri 2.12 ne permet pas encore de régler la lecture automatique de WebKit (la bibliothèque wry le permet) ; à prévoir.
+
+**Essai 5 en v13 : réussi une troisième fois, sans intervention.**
+- **Mac (console)** : la vidéo est restée « non démarrée » puis a été **relancée automatiquement une fois** et a joué 75 s. Plus besoin de cliquer.
+- **PC (écran) : 5 ms d'écart médian avec la lecture réelle du Mac** (p95 6 ms, max 6 ms), 303 mesures, 147 positions, aucun saut, 2 rattrapages doux. La pause arrive à la même seconde.
+- Recherche automatique : échec côté PC malgré 3 tentatives ; l'adresse retenue a servi. La découverte mDNS sur Windows reste à fiabiliser (pistes pour l'application : annonce complémentaire en diffusion UDP, ou QR code).
+- Écart d'horloge PC ↔ Mac : −651 ms (−242 ms une heure plus tôt) : le PC a recalé son heure entre-temps. La mesure continue l'absorbe.
+- **Conclusion de l'essai 5 : un écran suit la console à 5–6 ms près**, bien sous la durée d'une image (33–40 ms). Méthode retenue : console référence, position réelle diffusée 2 fois par seconde, écrans corrigés par rattrapage doux.
+
+**Android (v13) : arrêt au lancement expliqué.** `UnsatisfiedLinkError: cannot locate symbol "__cxa_pure_virtual"` dans `liblems_essais_lib.so` : la bibliothèque audio (cpal → oboe, en C++) n'embarque pas le moteur C++ du NDK.
+- **v14** : moteur C++ du NDK relié en statique pour Android ; la compilation automatique vérifie, pour chaque processeur, qu'aucun symbole C++ ne manque dans l'APK.
+
