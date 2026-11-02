@@ -178,3 +178,12 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 
 **Essai 5, deuxième passage en v10 : la vidéo n'a pas démarré sur la console.** Le Mac n'a envoyé aucune position (aucune lecture constatée) ; le PC n'a fait que 7 mesures, sur l'horloge théorique, avec 383 ms de retard. Le rapport ne disait pas pourquoi. Un « code incorrect » apparaît de nouveau après une connexion réussie (second clic sur « Se connecter »).
 - **v12** : le rapport garde l'état du lecteur YouTube (chargement, lecture, pause…) et ses erreurs (vidéo privée, intégration refusée, adresse refusée…) ; la console prévient si la vidéo ne démarre pas 5 s après l'heure prévue et invite à cliquer dessus ; « Se connecter » est désactivé pendant et après la connexion.
+
+**Essai 5 en v12 (Mac console + PC écran) : réussi de nouveau, et la panne de démarrage est expliquée.**
+- **PC (écran) : 6 ms d'écart médian avec la lecture réelle du Mac** (p95 6 ms, max 35 ms), 114 positions reçues ; 1 saut (la console a démarré en retard), 1 rattrapage doux. La pause de la console arrive bien sur l'écran (même seconde).
+- **Mac (console) : la vidéo ne démarre pas au premier lancement.** Historique du lecteur : « non démarrée → en chargement → non démarrée », alerte au bout de 5 s ; au lancement suivant (lecteur déjà créé), la même séquence aboutit à « en lecture ». Cause probable : un lecteur YouTube tout juste créé sur Mac ignore la mise en place rapide (chargement, saut, pause, lecture). Retard constant de la console sur l'horloge : 609 ms, stable à 1 ms près.
+- La recherche automatique a encore échoué côté PC (2 fois sur 4) : l'annonce du Mac n'est pas toujours vue par Windows.
+- Écart d'horloge PC ↔ Mac : −339, −303, −283, −242 ms en 1 h 30 : **l'horloge du PC dérive d'environ 65 ms par heure** par rapport au Mac. La mesure continue (toutes les 250 ms) est indispensable sur une soirée de 4 h.
+- **Android v12** : APK optimisé de 8 Mo (au lieu de 44 Mo compressés), 64 et 32 bits, signé avec la clé de test.
+- **v13** : lecture relancée automatiquement si le lecteur reste « non démarré » (jusqu'à 4 fois) ; lecteur de la console préparé dès le choix du rôle ; recherche en 3 tentatives ; l'écran retient la dernière adresse de console qui a fonctionné.
+- Pour l'application : Tauri 2.12 ne permet pas encore de régler la lecture automatique de WebKit (la bibliothèque wry le permet) ; à prévoir.

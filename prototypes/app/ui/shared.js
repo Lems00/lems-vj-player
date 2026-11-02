@@ -1,6 +1,6 @@
 // Fonctions communes aux pages d'essai.
 // Numéro de version des essais : visible en haut de chaque page et dans chaque rapport.
-const ESSAIS_VERSION = 'essais v12';
+const ESSAIS_VERSION = 'essais v13';
 const TAURI = window.__TAURI__ && window.__TAURI__.core ? window.__TAURI__.core : null;
 const IN_APP = !!TAURI;
 

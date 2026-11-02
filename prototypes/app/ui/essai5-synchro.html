@@ -82,6 +82,7 @@ async function asConsole() {
   mode = 'console'; $('#consolePanel').hidden = false; $('#connectPanel').hidden = true;
   report.resultats.role = 'console';
   const info = await call('console_start', { name: $('#name').value });
+  ensurePlayer($('#video').value.trim()).catch(() => {}); // lecteur prêt avant le lancement
   report.resultats.console = { port: info.port, adresses: info.urls, annonce_wifi: info.advertised, erreur_annonce: info.advertise_error };
   $('#addr').textContent = info.urls.length ? info.urls.join('   ou   ') : 'aucune adresse réseau trouvée : cet appareil est-il sur le Wi-Fi ?';
   $('#consoleState').textContent = info.advertised ? 'Annoncée sur le Wi-Fi. Sur Windows, autorisez « Lems VJ Essais » en réseau privé si le pare-feu le demande.' : 'Annonce Wi-Fi impossible (' + info.advertise_error + ') : saisissez l’adresse ci-dessus sur l’écran.';
@@ -104,10 +105,13 @@ async function stopAll() {
   playing = null; if (player && player.pauseVideo) player.pauseVideo();
 }
 
-function asScreen() { mode = 'screen'; $('#connectPanel').hidden = false; $('#consolePanel').hidden = true; report.resultats.role = 'écran'; $('#clockNote').textContent = "Horloge de la console, estimée par cet écran"; }
+function asScreen() { try { const last = localStorage.getItem('lems.essai5.console'); if (last && !$('#url').value) $('#url').value = last; } catch (e) {} mode = 'screen'; $('#connectPanel').hidden = false; $('#consolePanel').hidden = true; report.resultats.role = 'écran'; $('#clockNote').textContent = "Horloge de la console, estimée par cet écran"; }
 async function discover() {
-  $('#connState').textContent = 'Recherche…';
-  const l = await call('discover', { timeoutMs: 4000 });
+  let l = [];
+  for (let i = 1; i <= 3 && !l.length; i++) {
+    $('#connState').textContent = 'Recherche… (' + i + '/3)';
+    l = await call('discover', { timeoutMs: 4000 });
+  }
   report.resultats.recherche = l.length ? l.map(c => c.name + ' ' + (c.url || '')) : 'aucune console trouvée';
   if (l.length) $('#url').value = l[0].url || '';
   $('#connState').textContent = l.length ? 'Console trouvée : ' + l[0].name + '. Saisissez son code, puis « Se connecter ».' : 'Aucune console trouvée. Recopiez l’adresse affichée sur la console dans la case Adresse.';
@@ -118,6 +122,7 @@ async function connect() {
   $('#connect').disabled = true; $('#connState').textContent = 'Connexion…';
   try {
     const name = await call('device_connect', { url: $('#url').value.trim(), code: $('#pin').value.trim(), name: $('#name').value, role: 'screen' });
+    try { localStorage.setItem('lems.essai5.console', $('#url').value.trim()); } catch (e) {}
     report.resultats.connexion = 'connecté à ' + name; delete report.resultats.erreur_connexion; renderReport();
     $('#connState').textContent = 'Connecté à « ' + name + ' ». Attente des commandes de la console…';
     timers.push(setInterval(async () => { const s = await call('device_status'); if (s && s.offset_ms != null) { offset = s.offset_ms; report.resultats.horloge = s; renderReport(); } }, 500));
@@ -166,6 +171,7 @@ async function startAt(position, localAt, master = false) {
   player.pauseVideo();
   const w2 = localAt - Date.now(); if (w2 > 0) await sleep(w2);
   player.playVideo();
+  ensurePlaying();
   if (master) { masterLoop(); return; }
   let rate = 1, settleUntil = Date.now() + SYNC.settleMs, checkSeek = false;
   const loop = setInterval(() => {
@@ -193,6 +199,17 @@ async function startAt(position, localAt, master = false) {
 }
 // Console : diffuse sa position toutes les 500 ms et mesure, pour information,
 // son retard sur l'horloge théorique (sans le corriger).
+// Sur Mac, un lecteur tout juste créé reste parfois « non démarré » après la mise
+// en place (essai 5, v12) : on relance la lecture, jusqu'à 4 fois.
+function ensurePlaying(tries = 0) {
+  setTimeout(() => {
+    if (!playing || !player || player.getPlayerState() === YT.PlayerState.PLAYING) return;
+    if (tries >= 4) return;
+    noteLecteur('relance de la lecture (' + (tries + 1) + ')');
+    player.playVideo();
+    ensurePlaying(tries + 1);
+  }, 1500);
+}
 function masterLoop() {
   const lags = [];
   setTimeout(() => {
