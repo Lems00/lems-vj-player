@@ -22,7 +22,7 @@ Chaque essai affiche un **rapport** : bouton « Copier le rapport », puis colle
   - **connexion réelle** console ↔ appareils sur la même machine, plusieurs appareils compris ;
   - **découverte mDNS**.
 - **L'application** (`app/`) : le code Rust se compile pour **Windows** sans erreur ni avertissement de l'outil de contrôle.
-- **Les pages des 5 essais** : 45 vérifications automatiques passent, avec un **faux lecteur YouTube** et une **fausse application**. Cela prouve que la logique des pages fonctionne, pas que YouTube ou le son se comportent comme prévu.
+- **Les pages des 5 essais** : 48 vérifications automatiques passent, avec un **faux lecteur YouTube** et une **fausse application**. Cela prouve que la logique des pages fonctionne, pas que YouTube ou le son se comportent comme prévu.
 
 **Pas encore vérifié, et c'est l'objet de vos essais :**
 - le vrai YouTube (bloqué dans le cloud) ;

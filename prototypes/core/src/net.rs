@@ -7,6 +7,7 @@
 //! La console accepte trois mauvais codes au plus, puis en tire un nouveau.
 
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -292,7 +293,13 @@ pub struct DeviceClient {
     tx: mpsc::Sender<Message>,
     rx: tokio::sync::Mutex<mpsc::Receiver<Message>>,
     clock: Arc<Mutex<ClockSync>>,
+    connected: Arc<AtomicBool>,
 }
+
+/// Sans aucune réponse de la console pendant ce temps (les mesures d'horloge
+/// en provoquent plusieurs par seconde), la connexion est tenue pour perdue :
+/// un téléphone mis en veille ou sorti du Wi-Fi ne prévient pas.
+const SILENCE_MAX_MS: i64 = 3_000;
 
 impl DeviceClient {
     /// Se connecte à `url` (ws://adresse:port), s'appaire avec `code`, puis
@@ -327,12 +334,16 @@ impl DeviceClient {
         let (tx, mut out_rx) = mpsc::channel::<Message>(256);
         let (in_tx, in_rx) = mpsc::channel::<Message>(256);
         let clock2 = clock.clone();
+        let connected = Arc::new(AtomicBool::new(true));
+        let connected2 = connected.clone();
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_millis(ping_every.max(50)));
             let mut reports = 0u32;
+            let mut last_rx = now_ms();
             loop {
                 tokio::select! {
                     _ = tick.tick() => {
+                        if now_ms() - last_rx > SILENCE_MAX_MS.max(ping_every as i64 * 4) { break; }
                         if send_sealed(&mut ws, &mut channel, &Message::Ping { t0: now_ms() }).await.is_err() { break; }
                         reports += 1;
                         if reports.is_multiple_of(4) {
@@ -348,6 +359,7 @@ impl DeviceClient {
                     frame = ws.next() => {
                         let data = match frame { Some(Ok(WsMsg::Binary(b))) => b, Some(Ok(WsMsg::Ping(_))) | Some(Ok(WsMsg::Pong(_))) => continue, _ => break };
                         let t3 = now_ms();
+                        last_rx = t3;
                         let Ok(plain) = channel.open(&data) else { break };
                         let Ok(m) = serde_json::from_slice::<Message>(&plain) else { continue };
                         if let Message::Pong { t0, t1, t2 } = m {
@@ -356,8 +368,9 @@ impl DeviceClient {
                     }
                 }
             }
+            connected2.store(false, Ordering::SeqCst);
         });
-        Ok(Self { console_name, tx, rx: tokio::sync::Mutex::new(in_rx), clock })
+        Ok(Self { console_name, tx, rx: tokio::sync::Mutex::new(in_rx), clock, connected })
     }
 
     pub async fn send(&self, m: Message) -> Result<(), NetError> {
@@ -374,6 +387,11 @@ impl DeviceClient {
 
     pub fn rtt_ms(&self) -> Option<f64> {
         self.clock.lock().unwrap().best_rtt_ms()
+    }
+
+    /// Faux dès que la connexion est fermée ou que la console ne répond plus.
+    pub fn is_connected(&self) -> bool {
+        self.connected.load(Ordering::SeqCst)
     }
 
     pub fn clock_samples(&self) -> usize {
@@ -463,6 +481,8 @@ mod tests {
         // L'ancienne connexion a été fermée par la console.
         let ended = tokio::time::timeout(Duration::from_secs(2), first.recv()).await;
         assert!(matches!(ended, Ok(None)), "l'ancienne connexion devrait être fermée");
+        assert!(!first.is_connected(), "l'appareil doit savoir que sa connexion est perdue");
+        assert!(_second.is_connected());
         // Un autre appareil, lui, s'ajoute.
         let _other = DeviceClient::connect(&url, &c.code(), "Tablette", Role::Controller, 100).await.unwrap();
         tokio::time::sleep(Duration::from_millis(100)).await;

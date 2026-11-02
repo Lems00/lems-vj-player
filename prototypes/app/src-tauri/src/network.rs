@@ -146,6 +146,7 @@ pub fn device_status(state: tauri::State<'_, NetState>) -> Option<serde_json::Va
         "rtt_ms": d.rtt_ms(),
         "offset_ms": d.clock_offset_ms(),
         "samples": d.clock_samples(),
+        "connected": d.is_connected(),
     }))
 }
 

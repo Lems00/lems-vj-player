@@ -198,3 +198,10 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 **Android (v13) : arrêt au lancement expliqué.** `UnsatisfiedLinkError: cannot locate symbol "__cxa_pure_virtual"` dans `liblems_essais_lib.so` : la bibliothèque audio (cpal → oboe, en C++) n'embarque pas le moteur C++ du NDK.
 - **v14** : moteur C++ du NDK relié en statique pour Android ; la compilation automatique vérifie, pour chaque processeur, qu'aucun symbole C++ ne manque dans l'APK.
 
+
+**v14 : l'application démarre sur Android.** Appareil : modèle 25062RN2DA, Android 16, processeur 64 bits, WebView Chrome 156, écran 384 × 832 points.
+- **Correctif confirmé** : plus d'arrêt au lancement ; menu des essais affiché.
+- **Appairage Android ↔ Mac réussi** (adresse saisie : la recherche ne trouve rien sur Android, comme prévu — filtrage du multicast) ; aller-retour 6 ms, écart d'horloge +860 ms, 32 mesures.
+- **Mais la connexion s'est perdue avant la lecture** : la console voit l'Android « déconnecté », et l'Android n'a reçu ni chargement ni lecture. Probable : application passée en arrière-plan ou écran éteint pendant qu'on allait sur le Mac. L'écran ne s'en apercevait pas et ne se reconnectait pas.
+- **PC (écran) dans le même passage : 2 ms d'écart médian** avec la console (p95 3 ms, max 5 ms) — meilleur résultat à ce jour. Mac et PC ont chacun eu besoin d'une ou deux relances automatiques de la lecture.
+- **v15** : l'appareil détecte la perte de connexion (fermeture, ou 3 s sans réponse de la console) ; l'écran se reconnecte tout seul toutes les 2 s et note chaque coupure dans le rapport ; il demande à garder l'écran allumé pendant l'essai.

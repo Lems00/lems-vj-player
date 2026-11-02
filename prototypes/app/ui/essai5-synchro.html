@@ -117,17 +117,48 @@ async function discover() {
   $('#connState').textContent = l.length ? 'Console trouvée : ' + l[0].name + '. Saisissez son code, puis « Se connecter ».' : 'Aucune console trouvée. Recopiez l’adresse affichée sur la console dans la case Adresse.';
   renderReport();
 }
+// Connexion de l'écran, puis reconnexion automatique (v15) : un téléphone mis en
+// veille ou passé en arrière-plan perd la connexion sans prévenir.
+let cible = null, reconnexion = null, perteA = null;
 async function connect() {
   if (!$('#url').value.trim()) { $('#connState').replaceChildren(el('span', { class: 'err' }, 'Saisissez l’adresse de la console, ou cliquez sur « Chercher la console ».')); return; }
   $('#connect').disabled = true; $('#connState').textContent = 'Connexion…';
+  cible = { url: $('#url').value.trim(), code: $('#pin').value.trim(), name: $('#name').value, role: 'screen' };
   try {
-    const name = await call('device_connect', { url: $('#url').value.trim(), code: $('#pin').value.trim(), name: $('#name').value, role: 'screen' });
-    try { localStorage.setItem('lems.essai5.console', $('#url').value.trim()); } catch (e) {}
+    const name = await call('device_connect', cible);
+    try { localStorage.setItem('lems.essai5.console', cible.url); } catch (e) {}
     report.resultats.connexion = 'connecté à ' + name; delete report.resultats.erreur_connexion; renderReport();
     $('#connState').textContent = 'Connecté à « ' + name + ' ». Attente des commandes de la console…';
-    timers.push(setInterval(async () => { const s = await call('device_status'); if (s && s.offset_ms != null) { offset = s.offset_ms; report.resultats.horloge = s; renderReport(); } }, 500));
+    garderEcranAllume();
+    timers.push(setInterval(surveiller, 500));
     timers.push(setInterval(pollCommands, 100));
-  } catch (e) { $('#connect').disabled = false; report.resultats.erreur_connexion = String(e); renderReport(); $('#connState').replaceChildren(el('span', { class: 'err' }, String(e))); }
+  } catch (e) { cible = null; $('#connect').disabled = false; report.resultats.erreur_connexion = String(e); renderReport(); $('#connState').replaceChildren(el('span', { class: 'err' }, String(e))); }
+}
+async function surveiller() {
+  const s = await call('device_status');
+  if (s && s.offset_ms != null) { offset = s.offset_ms; report.resultats.horloge = s; }
+  if (s && s.connected === false && cible && !reconnexion) {
+    perteA = Date.now();
+    const d = report.resultats.deconnexions = report.resultats.deconnexions || [];
+    d.push({ perdue_a: new Date().toLocaleTimeString(), retablie_apres_s: null });
+    $('#connState').replaceChildren(el('span', { class: 'err' }, 'Connexion perdue. Reconnexion automatique…'));
+    reconnexion = setInterval(async () => {
+      try {
+        const name = await call('device_connect', cible);
+        clearInterval(reconnexion); reconnexion = null;
+        d[d.length - 1].retablie_apres_s = +((Date.now() - perteA) / 1000).toFixed(1);
+        $('#connState').textContent = 'Reconnecté à « ' + name + ' ».';
+      } catch (e) { d[d.length - 1].derniere_erreur = String(e); }
+      renderReport();
+    }, 2000);
+  }
+  renderReport();
+}
+// Garder l'écran allumé pendant l'essai, si le système le permet.
+async function garderEcranAllume() {
+  try { if (navigator.wakeLock) { await navigator.wakeLock.request('screen'); report.resultats.ecran_maintenu_allume = true; } else report.resultats.ecran_maintenu_allume = 'non disponible'; }
+  catch (e) { report.resultats.ecran_maintenu_allume = 'refusé : ' + e.message; }
+  renderReport();
 }
 async function pollCommands() {
   for (const m of await call('device_messages')) {
