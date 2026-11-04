@@ -52,7 +52,7 @@ jobs:
       matrix:
         include:
           - nom: Mac
-            os: macos-15
+            os: macos-26
             cibles: aarch64-apple-darwin,x86_64-apple-darwin
             args: --target universal-apple-darwin --bundles app
             artefact: essais-mac
