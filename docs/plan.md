@@ -230,3 +230,10 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - **Position** : écart-type 3 à 7 ms (meilleur que sur Mac, 16 à 18 ms), mais **la position annoncée n'avance que par pas d'environ 80 ms** (78 à 84 ms) : il faut lisser ou interpoler, ce que fait déjà la correction des écrans (11 ms d'écart médian à l'essai 5).
 - Dérive pendant la mesure : 25 à 45 ms de retard. Saut vers un repère : 0,36 à 0,67 s.
 - À refaire plus tard sur une tablette ou un téléphone d'entrée de gamme (l'Android console complète est prévue après la version 1).
+
+**Essai 2 sur Android (v16, téléphone + AirPods Pro) : une seule sortie à la fois.**
+- Les sorties apparaissent en double et sous le nom du téléphone (haut-parleur, écouteur, etc. ne sont pas distingués par la bibliothèque audio), plus les AirPods.
+- **Deux sons en même temps vers deux sorties : impossible.** À chaque passage, un seul des deux flux joue ; l'autre s'arrête en erreur après 2 appels. Entendu : l'aigu dans les AirPods, pas le grave dans le haut-parleur. Android dirige tout le son d'une application vers une seule sortie (règle du système).
+- Tampon de 256 refusé, taille par défaut imposée (au moins 896 échantillons).
+- La latence affichée était fausse (« 1 250 617 417 ms ») : les deux instants mesurés ne viennent pas de la même horloge sur Android. Valeurs au-delà de 2 s désormais ignorées.
+- **Conséquences** : sans effet sur la version 1 (Android y est contrôleur et écran, décision 2). Pour une future console Android avec pré-écoute : passer par **une carte son USB à 4 canaux** (canaux 1-2 = salle, 3-4 = casque) ouverte comme une seule sortie, et non par deux sorties séparées. À essayer quand la console Android sera au programme.

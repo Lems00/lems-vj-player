@@ -267,7 +267,10 @@ fn record(c: &Counters, frames: usize, info: &cpal::OutputCallbackInfo) {
     c.callbacks.fetch_add(1, Ordering::Relaxed);
     c.frames.fetch_add(frames as u64, Ordering::Relaxed);
     let ts = info.timestamp();
-    if let Some(d) = ts.playback.duration_since(&ts.callback) {
+    // Sur Android, les deux instants ne viennent pas de la même horloge (essai 2
+    // du 4 novembre : « 1 250 617 417 ms ») : une valeur de plus de 2 s est
+    // ignorée plutôt qu'affichée.
+    if let Some(d) = ts.playback.duration_since(&ts.callback).filter(|d| d.as_secs_f64() < 2.0) {
         let us = d.as_micros() as u64;
         c.latency_us.store(us, Ordering::Relaxed);
         c.max_latency_us.fetch_max(us, Ordering::Relaxed);
