@@ -214,3 +214,5 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - Recherche automatique : échec sur Android (attendu) et sur le Mac.
 - **v16** : la console démarre la vidéo **dans le clic** « Lancer » (plus de départ différé de 3 s ; les écrans rattrapent) ; un nouveau lancement remplace le précédent (une seule boucle de correction à la fois) ; « No route to host » est expliqué (adresse de la console changée, ou autre Wi-Fi) et « connexion impossible » n'est plus répété.
 - **Pour l'application** : prévoir un moyen de retrouver la console même si son adresse change (QR code à scanner, ou annonce UDP), puisque mDNS échoue sur Android et souvent sur Windows.
+
+**Compilation automatique (4 novembre)** : les tâches Mac restaient en attente puis étaient annulées par GitHub au bout de 15 minutes (macos-15, puis macos-26), alors que Linux et Windows tournaient. Dépôt `lems-vj-player` rendu **public** par son propriétaire : la tâche Mac est passée aussitôt (2 min 40 sur macos-26). Les compilations des dépôts publics sont gratuites et sans quota de minutes.
