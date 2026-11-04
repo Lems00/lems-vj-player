@@ -205,3 +205,12 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - **Mais la connexion s'est perdue avant la lecture** : la console voit l'Android « déconnecté », et l'Android n'a reçu ni chargement ni lecture. Probable : application passée en arrière-plan ou écran éteint pendant qu'on allait sur le Mac. L'écran ne s'en apercevait pas et ne se reconnectait pas.
 - **PC (écran) dans le même passage : 2 ms d'écart médian** avec la console (p95 3 ms, max 5 ms) — meilleur résultat à ce jour. Mac et PC ont chacun eu besoin d'une ou deux relances automatiques de la lecture.
 - **v15** : l'appareil détecte la perte de connexion (fermeture, ou 3 s sans réponse de la console) ; l'écran se reconnecte tout seul toutes les 2 s et note chaque coupure dans le rapport ; il demande à garder l'écran allumé pendant l'essai.
+
+**Essai 5 en v15 avec Android en écran (4 novembre) : réussi.**
+- Le Mac avait changé d'adresse (192.168.88.232 → .224) : l'adresse retenue par l'Android ne répondait plus (« No route to host »). Avec la bonne adresse : connexion, aller-retour 5 à 8 ms, écart d'horloge +347 ms.
+- **Android (écran) : 17 ms d'écart médian avec la lecture réelle du Mac** (p95 22 ms, max 27 ms), 552 mesures, 323 positions reçues, aucune coupure, **écran gardé allumé** (accepté par la WebView). Sous la durée d'une image (33 ms à 30 i/s) : suffisant pour un écran de salle.
+- Mais 3 sauts, 7 rattrapages et 85 s hors 1× sur 90 : la console a été relancée trois fois, et **chaque lancement ajoutait une boucle de correction** sur l'écran, sans arrêter la précédente (relances numérotées en double dans l'historique). Défaut de la page d'essai.
+- **Mac (console)** : au premier lancement, la vidéo n'a pas démarré malgré 4 relances ; aux lancements suivants, si. Hypothèse : WebKit refuse une lecture déclenchée par programme 2 à 3 s après le clic.
+- Recherche automatique : échec sur Android (attendu) et sur le Mac.
+- **v16** : la console démarre la vidéo **dans le clic** « Lancer » (plus de départ différé de 3 s ; les écrans rattrapent) ; un nouveau lancement remplace le précédent (une seule boucle de correction à la fois) ; « No route to host » est expliqué (adresse de la console changée, ou autre Wi-Fi) et « connexion impossible » n'est plus répété.
+- **Pour l'application** : prévoir un moyen de retrouver la console même si son adresse change (QR code à scanner, ou annonce UDP), puisque mDNS échoue sur Android et souvent sur Windows.

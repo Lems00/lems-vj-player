@@ -91,14 +91,26 @@ async function asConsole() {
 }
 async function launch() {
   const video = $('#video').value.trim(), position = +$('#startAt').value;
-  const at = Date.now() + 3000;
+  const at = Date.now();
+  // v16 : la console démarre tout de suite, dans le clic. Sur Mac, WebKit refuse
+  // souvent une lecture déclenchée plus tard par programme (essai du 4 novembre :
+  // 4 relances sans effet au premier lancement). Les écrans rattrapent ensuite.
+  const pret = player && player.loadVideoById;
+  if (pret) {
+    const g = ++generation;
+    drifts = []; signed = []; corrections = 0; nudges = 0; timeOff1x = 0;
+    playing = { position, localAt: at, base: position - at / 1000 };
+    player.loadVideoById({ videoId: video, startSeconds: position });
+    noteLecteur('lecture lancée dans le clic');
+    ensurePlaying(0, g); masterLoop(g);
+  }
   await call('console_broadcast', { message: JSON.stringify({ type: 'load', deck: 'a', source: { kind: 'youtube', video_id: video } }) });
   await call('console_broadcast', { message: JSON.stringify({ type: 'play', deck: 'a', position, at }) });
   report.resultats.lancement = { video, position, at };
   renderReport();
   // La console lit la vidéo sans se corriger : c'est elle la référence.
   // Elle diffuse sa position réelle ; les écrans suivent cette lecture.
-  try { await ensurePlayer(video); startAt(position, at, true); } catch (e) { $('#notice').replaceChildren(el('p', { class: 'err' }, e.message)); }
+  if (!pret) try { await ensurePlayer(video); startAt(position, at, true); } catch (e) { $('#notice').replaceChildren(el('p', { class: 'err' }, e.message)); }
 }
 async function stopAll() {
   if (mode === 'console') await call('console_broadcast', { message: JSON.stringify({ type: 'pause', deck: 'a', position: 0 }) });
@@ -191,22 +203,28 @@ function followConsole(m) {
 }
 
 // Démarre la lecture à `position` (s) à l'heure locale `localAt` (ms), puis corrige la dérive.
+// Chaque lancement remplace le précédent : sans cela, plusieurs boucles de
+// correction tournaient ensemble après des lancements répétés (Android, v15).
+let generation = 0;
 async function startAt(position, localAt, master = false) {
+  const g = ++generation;
   drifts = []; signed = []; corrections = 0; nudges = 0; timeOff1x = 0; baseSamples = []; positionsRecues = 0;
   playing = { position, localAt, base: position - localAt / 1000 };
   const lead = 600; // le lecteur met du temps à démarrer : on prépare un peu avant
   const wait = localAt - Date.now() - lead;
   if (wait > 0) await sleep(wait);
+  if (g !== generation) return;
   player.setPlaybackRate(1);
   player.seekTo(position + Math.max(0, Date.now() + lead - localAt) / 1000, true);
   player.pauseVideo();
   const w2 = localAt - Date.now(); if (w2 > 0) await sleep(w2);
+  if (g !== generation) return;
   player.playVideo();
-  ensurePlaying();
-  if (master) { masterLoop(); return; }
+  ensurePlaying(0, g);
+  if (master) { masterLoop(g); return; }
   let rate = 1, settleUntil = Date.now() + SYNC.settleMs, checkSeek = false;
   const loop = setInterval(() => {
-    if (!playing) { clearInterval(loop); return; }
+    if (!playing || g !== generation) { clearInterval(loop); return; }
     if (player.getPlayerState() !== YT.PlayerState.PLAYING) return;
     const now = Date.now();
     if (now < settleUntil) return;
@@ -232,25 +250,25 @@ async function startAt(position, localAt, master = false) {
 // son retard sur l'horloge théorique (sans le corriger).
 // Sur Mac, un lecteur tout juste créé reste parfois « non démarré » après la mise
 // en place (essai 5, v12) : on relance la lecture, jusqu'à 4 fois.
-function ensurePlaying(tries = 0) {
+function ensurePlaying(tries = 0, g = generation) {
   setTimeout(() => {
-    if (!playing || !player || player.getPlayerState() === YT.PlayerState.PLAYING) return;
+    if (g !== generation || !playing || !player || player.getPlayerState() === YT.PlayerState.PLAYING) return;
     if (tries >= 4) return;
     noteLecteur('relance de la lecture (' + (tries + 1) + ')');
     player.playVideo();
-    ensurePlaying(tries + 1);
+    ensurePlaying(tries + 1, g);
   }, 1500);
 }
-function masterLoop() {
+function masterLoop(g = generation) {
   const lags = [];
   setTimeout(() => {
-    if (playing && !lags.length) {
+    if (g === generation && playing && !lags.length) {
       noteLecteur('ne démarre pas 5 s après l’heure prévue (état : ' + lecteur.etat + ')');
       $('#notice').replaceChildren(el('p', { class: 'err' }, 'La vidéo ne démarre pas sur la console (état : ' + lecteur.etat + '). Cliquez sur la vidéo pour la lancer : les écrans suivront.'));
     }
   }, 5000);
   const loop = setInterval(async () => {
-    if (!playing) { clearInterval(loop); return; }
+    if (!playing || g !== generation) { clearInterval(loop); return; }
     if (player.getPlayerState() !== YT.PlayerState.PLAYING) return;
     const now = Date.now(), pos = player.getCurrentTime();
     await call('console_broadcast', { message: JSON.stringify({ type: 'position', deck: 'a', position: pos, at: now }) });

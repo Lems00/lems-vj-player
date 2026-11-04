@@ -58,6 +58,8 @@ fn check_port(p: &str) -> Result<u16, String> {
 
 /// Explique en clair un échec de connexion d'un appareil à la console.
 pub fn explain_connect_error(raw: &str) -> String {
+    // L'erreur du cœur commence déjà par « connexion impossible : » : on ne le répète pas.
+    let raw = raw.strip_prefix("connexion impossible : ").unwrap_or(raw);
     let l = raw.to_ascii_lowercase();
     let why = if l.contains("lookup address") || l.contains("nodename") || l.contains("no such host") || l.contains("name or service not known") {
         "l'adresse est mal écrite. Recopiez-la telle que la console l'affiche, par exemple ws://192.168.1.20:48700."
@@ -65,7 +67,9 @@ pub fn explain_connect_error(raw: &str) -> String {
         "l'ordinateur a été joint mais rien n'écoute à cette adresse. Sur la console, cliquez d'abord sur « Cet appareil est la console », et vérifiez le numéro de port."
     } else if l.contains("timed out") || l.contains("délai") || l.contains("10060") {
         "aucune réponse. Le plus probable : le pare-feu de la console bloque l'accès (sur Windows, autorisez « Lems VJ Essais » en réseau privé), ou les deux appareils ne sont pas sur le même Wi-Fi."
-    } else if l.contains("unreachable") || l.contains("10065") || l.contains("10051") {
+    } else if l.contains("no route to host") || l.contains("os error 113") || l.contains("os error 65") || l.contains("10065") {
+        "aucun appareil ne répond à cette adresse. La console a peut-être changé d'adresse (recopiez celle qu'elle affiche), ou cet appareil n'est pas sur le même Wi-Fi qu'elle."
+    } else if l.contains("unreachable") || l.contains("10051") {
         "réseau inaccessible. Les deux appareils sont-ils sur le même Wi-Fi ?"
     } else if l.contains("code incorrect") {
         "code incorrect. Recopiez le code affiché sur la console (il change après 3 erreurs)."
@@ -124,6 +128,9 @@ mod tests {
         assert!(explain_connect_error("IO error: Connection refused (os error 61)").contains("rien n'écoute"));
         assert!(explain_connect_error("délai dépassé").contains("pare-feu"));
         assert!(explain_connect_error("autre chose").starts_with("Connexion impossible : autre chose"));
+        let e = explain_connect_error("connexion impossible : IO error: No route to host (os error 113)");
+        assert!(e.contains("changé d'adresse"), "{e}");
+        assert_eq!(e.matches("onnexion impossible").count(), 1, "{e}");
     }
 
     #[test]
