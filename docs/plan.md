@@ -223,3 +223,10 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - Le lecteur Android met environ 7 s à démarrer (4 relances automatiques, puis deux chargements) : à prévoir dans l'application (préparer la vidéo sur les écrans avant le lancement).
 
 **Bilan de l'essai 5 : validé sur les trois systèmes.** Écart d'un écran avec la console : PC 2 à 6 ms, Android 11 à 17 ms, toujours sous la durée d'une image. Méthode retenue pour l'application : console référence (sans correction), position réelle diffusée deux fois par seconde, écrans corrigés par rattrapage doux et sauts rares, reconnexion automatique, écran gardé allumé.
+
+**Essai 1 sur Android (v16, téléphone 25062RN2DA, Android 16) : quatre lecteurs YouTube tiennent.** Risque n° 1 du plan levé pour un téléphone récent.
+- **4 lecteurs simultanés** : chargés en 1,7 à 1,8 s chacun, lecture des quatre sans erreur, mémoire JavaScript 19,6 Mo.
+- **Vitesses : mêmes règles que sur Mac** — pas de 0,05, arrondi vers le bas (1,01 à 1,04 → 1 ; 0,97 à 0,99 → 0,95) ; vitesses jouées exactes (1,0495 à 1,0541 pour 1,05). **Pas de SYNC fin sur YouTube**, confirmé sur Android.
+- **Position** : écart-type 3 à 7 ms (meilleur que sur Mac, 16 à 18 ms), mais **la position annoncée n'avance que par pas d'environ 80 ms** (78 à 84 ms) : il faut lisser ou interpoler, ce que fait déjà la correction des écrans (11 ms d'écart médian à l'essai 5).
+- Dérive pendant la mesure : 25 à 45 ms de retard. Saut vers un repère : 0,36 à 0,67 s.
+- À refaire plus tard sur une tablette ou un téléphone d'entrée de gamme (l'Android console complète est prévue après la version 1).
