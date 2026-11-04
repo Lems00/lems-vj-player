@@ -216,3 +216,10 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - **Pour l'application** : prévoir un moyen de retrouver la console même si son adresse change (QR code à scanner, ou annonce UDP), puisque mDNS échoue sur Android et souvent sur Windows.
 
 **Compilation automatique (4 novembre)** : les tâches Mac restaient en attente puis étaient annulées par GitHub au bout de 15 minutes (macos-15, puis macos-26), alors que Linux et Windows tournaient. Dépôt `lems-vj-player` rendu **public** par son propriétaire : la tâche Mac est passée aussitôt (2 min 40 sur macos-26). Les compilations des dépôts publics sont gratuites et sans quota de minutes.
+
+**Essai 5 en v16 (Mac console + Android écran) : réussi, défauts corrigés.**
+- **Mac (console)** : la vidéo démarre **au premier clic**, en 2 s, sans relance. Correctif confirmé.
+- **Android (écran) : 11 ms d'écart médian avec la lecture réelle du Mac** (p95 12 ms, max 13 ms), 161 mesures, 102 positions ; 2 sauts et 1 rattrapage au démarrage, puis plus rien (3,3 s hors 1×, contre 85 s en v15). Correctif « une seule boucle » confirmé.
+- Le lecteur Android met environ 7 s à démarrer (4 relances automatiques, puis deux chargements) : à prévoir dans l'application (préparer la vidéo sur les écrans avant le lancement).
+
+**Bilan de l'essai 5 : validé sur les trois systèmes.** Écart d'un écran avec la console : PC 2 à 6 ms, Android 11 à 17 ms, toujours sous la durée d'une image. Méthode retenue pour l'application : console référence (sans correction), position réelle diffusée deux fois par seconde, écrans corrigés par rattrapage doux et sauts rares, reconnexion automatique, écran gardé allumé.
