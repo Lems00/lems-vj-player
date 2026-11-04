@@ -68,6 +68,11 @@ pub enum Message {
     Volume { deck: Deck, value: f32 },
     Crossfader { left: Deck, right: Deck, value: f32 },
     Status { text: String },
+    /// Préparer une platine : charger `source` et l'arrêter à `position` (s),
+    /// prête à partir sans délai au prochain `Play` (essai 6, playlist).
+    Cue { deck: Deck, source: Source, position: f64 },
+    /// Réponse d'un appareil : la platine est préparée, en `load_ms` millisecondes.
+    Ready { deck: Deck, video_id: String, load_ms: u32 },
 }
 
 impl Message {
@@ -92,6 +97,8 @@ mod tests {
             Message::Crossfader { left: Deck::A, right: Deck::B, value: -0.6 },
             Message::Pong { t0: 1, t1: 2, t2: 3 },
             Message::Position { deck: Deck::A, position: 31.25, at: 1_700_000_001_000 },
+            Message::Cue { deck: Deck::B, source: Source::Youtube { video_id: "eRsGyueVLvQ".into() }, position: 30.0 },
+            Message::Ready { deck: Deck::B, video_id: "eRsGyueVLvQ".into(), load_ms: 1780 },
         ];
         for m in msgs {
             let back = Message::from_json(&m.to_json()).unwrap();

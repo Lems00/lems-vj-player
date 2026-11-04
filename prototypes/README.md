@@ -9,6 +9,7 @@ Cinq essais pour vérifier, **sur vos vrais appareils**, ce qui pourrait bloquer
 | 3 · Découverte et appairage | Les appareils trouvent-ils la console sur le Wi-Fi ? L'appairage par code fonctionne-t-il ? Quel aller-retour ? | 1 console (Mac ou PC) + 1 appareil |
 | 4 · Deuxième écran | La fenêtre de sortie s'ouvre-t-elle en plein écran sur le projecteur ? | Mac ou PC + écran externe |
 | 5 · Écran synchronisé | Un deuxième appareil peut-il lire la même vidéo, calé sur la console ? Avec quel écart ? | 1 console + 1 écran |
+| 6 · Playlist synchronisée | Le titre suivant peut-il être préchargé sur chaque écran, pour que tous changent de titre ensemble, sans attendre ? | 1 console + 1 ou plusieurs écrans |
 
 Chaque essai affiche un **rapport** : bouton « Copier le rapport », puis collez-le dans la conversation avec ce que vous avez vu et entendu.
 
@@ -22,7 +23,7 @@ Chaque essai affiche un **rapport** : bouton « Copier le rapport », puis colle
   - **connexion réelle** console ↔ appareils sur la même machine, plusieurs appareils compris ;
   - **découverte mDNS**.
 - **L'application** (`app/`) : le code Rust se compile pour **Windows** sans erreur ni avertissement de l'outil de contrôle.
-- **Les pages des 5 essais** : 48 vérifications automatiques passent, avec un **faux lecteur YouTube** et une **fausse application**. Cela prouve que la logique des pages fonctionne, pas que YouTube ou le son se comportent comme prévu.
+- **Les pages des 5 essais** : 62 vérifications automatiques passent, avec un **faux lecteur YouTube** et une **fausse application**. Cela prouve que la logique des pages fonctionne, pas que YouTube ou le son se comportent comme prévu.
 
 **Pas encore vérifié, et c'est l'objet de vos essais :**
 - le vrai YouTube (bloqué dans le cloud) ;
@@ -147,6 +148,12 @@ Le verdict « pas de SYNC sur YouTube » apparaît si le lecteur refuse la vites
 2. Sur la console : « Lancer la lecture synchronisée ». Les deux appareils lisent la même vidéo.
 3. Filmez les deux **mires** côte à côte pendant 10 s avec un téléphone. L'écart se lit image par image sur la vidéo.
 4. Après 60 s, copiez le rapport **des deux côtés** : l'écran donne son écart à la console, la console donne son propre retard sur l'horloge (pour information : depuis la v10, les écrans suivent la lecture réelle de la console).
+
+### 6 · Playlist synchronisée
+1. Sur la console : « Cet appareil est la console ». Sur chaque écran : « Cet appareil est un écran », l'adresse, le code, « Se connecter ». **Connectez les écrans avant l'étape suivante.**
+2. Sur la console : « 1. Préparer la playlist ». Chaque appareil précharge les deux premiers titres (platines A et B). Attendez « prête » sur A et B pour chaque écran dans le tableau.
+3. « 2. Lancer » : le titre 1 démarre partout. Avec « Enchaîner automatiquement », la console passe au titre suivant toutes les 40 s ; sinon « Titre suivant ». Pendant ce temps, la platine libérée précharge le titre d'après.
+4. Après trois ou quatre titres, copiez le rapport **de chaque appareil** : temps de préchargement, temps de démarrage après l'ordre, écart avec la console pour chaque titre.
 
 ## Feuille de résultats (à me renvoyer)
 

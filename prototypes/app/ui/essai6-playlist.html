@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Essai 6 — Playlist synchronisée</title><link rel="stylesheet" href="style.css">
+<style>
+  .decks { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+  .deck { display: flex; flex-direction: column; gap: 6px; }
+  .deck-label { font: 600 11px/14px var(--sans, sans-serif); letter-spacing: .8px; text-transform: uppercase; color: var(--ink-muted, #9aa0aa); }
+  .deck.actif .deck-label { color: var(--ink, #eef0f3); }
+  textarea { width: 100%; max-width: 420px; min-height: 96px; box-sizing: border-box; background: transparent; color: inherit; border: 1px solid #2c2f36; border-radius: 4px; padding: 8px; font: 13px/18px ui-monospace, Menlo, Consolas, monospace; }
+</style></head>
+<body>
+<header><a href="index.html">← Essais</a><h1>6 · Playlist synchronisée</h1></header>
+<main>
+  <section class="panel">
+    <h2>Ce que l'essai vérifie</h2>
+    <p>Chaque appareil a <b>deux platines</b>, A et B. Pendant qu'une joue, l'autre <b>précharge</b> le titre suivant (chargé, arrêté au point de départ, son coupé) et prévient la console qu'elle est prête. Au changement de titre, tous les écrans basculent ensemble, sans attendre le chargement. Les deux lecteurs restent visibles (règle YouTube : au moins 200 × 200).</p>
+    <div class="row"><label>Nom <input id="name" size="24"></label><button class="solid" id="asConsole">Cet appareil est la console</button><button id="asScreen">Cet appareil est un écran</button></div>
+  </section>
+  <section class="panel" id="connectPanel" hidden>
+    <h2>Connexion de l'écran</h2>
+    <div class="row"><button id="discover">Chercher la console</button><label>Adresse <input id="url" class="mono" size="26" placeholder="ws://192.168.1.20:48700"></label><label>Code <input id="pin" class="mono" size="8" maxlength="6"></label><button class="solid" id="connect">Se connecter</button></div>
+    <p id="connState"></p>
+  </section>
+  <section class="panel" id="consolePanel" hidden>
+    <h2>Console</h2>
+    <div class="row"><span>Code :</span><span class="big" id="code">——————</span><span id="peerCount"></span></div>
+    <div class="row"><span>Adresse à saisir sur l'écran :</span><span class="mono" id="addr">—</span></div>
+    <div class="row"><label>Playlist (un identifiant YouTube par ligne)<br><textarea id="playlist">aqz-KE-bpKQ
+eRsGyueVLvQ
+R6MlUcmOul8
+WhWc3b3KhnY</textarea></label></div>
+    <div class="row"><label>Départ dans chaque titre <input id="startAt" type="number" value="30" style="width:80px"> s</label>
+      <label>Durée de chaque titre <input id="duree" type="number" value="40" style="width:80px"> s</label>
+      <label><input type="checkbox" id="auto" checked> Enchaîner automatiquement</label></div>
+    <div class="row"><button id="prepare">1. Préparer la playlist</button><button class="solid" id="launch" disabled>2. Lancer</button><button id="next" disabled>Titre suivant</button><button id="stopAll">Arrêter</button></div>
+    <p id="consoleState">Connectez les écrans, puis « Préparer la playlist » : chaque écran précharge les deux premiers titres.</p>
+    <table><thead><tr><th>Écran</th><th>Platine A</th><th>Platine B</th></tr></thead><tbody id="readyTable"></tbody></table>
+  </section>
+  <section class="panel">
+    <h2>Platines</h2>
+    <div class="decks">
+      <div class="deck" id="deck-a"><span class="deck-label">Platine A</span><div id="player-a"></div></div>
+      <div class="deck" id="deck-b"><span class="deck-label">Platine B</span><div id="player-b"></div></div>
+    </div>
+    <table><thead><tr><th>Titre en cours</th><th>Écart médian</th><th>Écart 95 %</th><th>Corrections</th><th>Mesures</th></tr></thead><tbody><tr><td id="sTitre">—</td><td id="sMed">—</td><td id="sP95">—</td><td id="sCorr">—</td><td id="sN">—</td></tr></tbody></table>
+  </section>
+  <div id="notice"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const GRAND = [640, 360], PETIT = [356, 200]; // la règle YouTube impose au moins 200 × 200
+let mode = null, offset = 0, timers = [];
+
+// ---------- Lecteurs YouTube, un par platine ----------
+function loadApi() {
+  return new Promise((resolve, reject) => {
+    if (window.YT && window.YT.Player) return resolve();
+    window.onYouTubeIframeAPIReady = resolve;
+    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; s.onerror = () => reject(new Error('API YouTube indisponible')); document.head.append(s);
+  });
+}
+const ETATS = { '-1': 'non démarrée', 0: 'terminée', 1: 'en lecture', 2: 'en pause', 3: 'en chargement', 5: 'prête' };
+const ERREURS_YT = { 2: 'identifiant invalide', 5: 'lecteur en erreur', 100: 'vidéo introuvable ou privée', 101: 'intégration refusée', 150: 'intégration refusée', 153: 'adresse refusée par YouTube' };
+const decks = { a: { player: null, video: null, pret: false }, b: { player: null, video: null, pret: false } };
+const journal = [];
+function note(t) { journal.push(new Date().toLocaleTimeString() + ' ' + t); if (journal.length > 40) journal.shift(); report.resultats.journal = journal; renderReport(); }
+function ensureDeck(d) {
+  if (!decks[d].promesse) decks[d].promesse = creerDeck(d);
+  return decks[d].promesse;
+}
+async function creerDeck(d) {
+  await loadApi();
+  await new Promise(res => {
+    decks[d].player = new YT.Player('player-' + d, { width: PETIT[0], height: PETIT[1], playerVars: { playsinline: 1, rel: 0, origin: location.origin },
+      events: { onReady: res, onStateChange: e => note('platine ' + d.toUpperCase() + ' : ' + (ETATS[e.data] || e.data)), onError: e => { const t = 'platine ' + d.toUpperCase() + ' : erreur ' + e.data + ' (' + (ERREURS_YT[e.data] || 'inconnue') + ')'; note(t); $('#notice').replaceChildren(el('p', { class: 'err' }, t)); } } });
+  });
+  return decks[d].player;
+}
+function attendreEtat(p, etat, maxMs) {
+  return new Promise(res => { const t0 = Date.now(); const i = setInterval(() => { if (p.getPlayerState() === etat) { clearInterval(i); res(true); } else if (Date.now() - t0 > maxMs) { clearInterval(i); res(false); } }, 50); });
+}
+// Précharger : charger son coupé, attendre la lecture (la mémoire tampon se remplit),
+// puis arrêter au point de départ. Rend la durée en ms, ou null en cas d'échec.
+const prechargements = [];
+async function precharger(d, video, position) {
+  const p = await ensureDeck(d), jeton = Symbol(); decks[d].jeton = jeton;
+  decks[d].pret = false; decks[d].video = video; decks[d].position = position;
+  const t0 = performance.now();
+  p.mute(); p.loadVideoById({ videoId: video, startSeconds: position });
+  let joue = await attendreEtat(p, YT.PlayerState.PLAYING, 6000);
+  for (let i = 0; !joue && i < 3; i++) { p.playVideo(); joue = await attendreEtat(p, YT.PlayerState.PLAYING, 4000); }
+  if (decks[d].jeton !== jeton) return null;
+  p.pauseVideo(); p.seekTo(position, true);
+  const ms = Math.round(performance.now() - t0);
+  decks[d].pret = joue;
+  prechargements.push({ platine: d.toUpperCase(), video, ms, reussi: joue });
+  report.resultats.prechargements = prechargements; renderReport();
+  note('platine ' + d.toUpperCase() + ' préchargée (' + video + ', ' + ms + ' ms' + (joue ? '' : ', ÉCHEC') + ')');
+  return joue ? ms : null;
+}
+function afficherActive(d) {
+  for (const k of ['a', 'b']) {
+    const actif = k === d; $('#deck-' + k).classList.toggle('actif', actif);
+    if (decks[k].player && decks[k].player.setSize) decks[k].player.setSize(...(actif ? GRAND : PETIT));
+  }
+}
+
+// ---------- Lecture et correction (méthode de l'essai 5) ----------
+const SYNC = { enter: 30, exit: 10, jump: 1500, settleMs: 1200, every: 250 };
+let generation = 0, playing = null, seekLead = 0.25, stats = null;
+const transitions = [];
+function couper(d) { const p = decks[d].player; if (p) { p.pauseVideo(); p.mute(); } }
+// Démarre la platine `d` à `position` (s) à l'heure locale `localAt` (ms).
+async function demarrer(d, position, localAt, master, transition) {
+  // Sans attente si le lecteur existe : la lecture part alors dans le clic (WebKit, essai 5).
+  const g = ++generation, p = decks[d].player || await ensureDeck(d), autre = d === 'a' ? 'b' : 'a';
+  decks[d].jeton = null; // un préchargement encore en cours ne doit plus arrêter cette platine
+  playing = { deck: d, base: position - localAt / 1000 }; baseSamples = [];
+  stats = { drifts: [], signed: [], sauts: 0, doux: 0 };
+  const attente = localAt - Date.now();
+  if (attente > 0) { p.seekTo(position, true); await sleep(attente); }
+  if (g !== generation) return;
+  couper(autre); afficherActive(d);
+  p.setPlaybackRate(1);
+  p.seekTo(position + Math.max(0, Date.now() - localAt) / 1000, true);
+  p.unMute(); p.setVolume(100); p.playVideo();
+  decks[d].pret = false;
+  $('#sTitre').textContent = (transition.titre || '') + ' · ' + decks[d].video + ' (' + d.toUpperCase() + ')';
+  relancer(p, g, 0);
+  attendreEtat(p, YT.PlayerState.PLAYING, 15000).then(ok => { if (g === generation) { transition.demarrage_ms = ok ? Math.round(Date.now() - localAt) : null; renderReport(); } });
+  if (master) { boucleConsole(g, d); return; }
+  let rate = 1, settleUntil = Date.now() + SYNC.settleMs;
+  const loop = setInterval(() => {
+    if (!playing || g !== generation) { clearInterval(loop); return; }
+    if (p.getPlayerState() !== YT.PlayerState.PLAYING) return;
+    const now = Date.now(); if (now < settleUntil) return;
+    const expected = now / 1000 + playing.base, dd = (p.getCurrentTime() - expected) * 1000;
+    stats.drifts.push(Math.abs(dd)); stats.signed.push(dd);
+    if (Math.abs(dd) > SYNC.jump) { stats.sauts++; if (rate !== 1) { p.setPlaybackRate(1); rate = 1; } p.seekTo(expected + seekLead, true); settleUntil = now + SYNC.settleMs; }
+    else if (Math.abs(dd) > SYNC.enter || (rate !== 1 && Math.abs(dd) > SYNC.exit)) { const want = dd < 0 ? 1.05 : 0.95; if (rate !== want) { p.setPlaybackRate(want); rate = want; stats.doux++; } }
+    else if (rate !== 1) { p.setPlaybackRate(1); rate = 1; }
+    const r = stats.drifts.slice(-80);
+    transition.ecart_median_ms = Math.round(median(r)); transition.ecart_p95_ms = Math.round(percentile(r, 0.95)); transition.sauts = stats.sauts; transition.rattrapages_doux = stats.doux; transition.mesures = stats.drifts.length;
+    $('#sMed').textContent = transition.ecart_median_ms + ' ms'; $('#sP95').textContent = transition.ecart_p95_ms + ' ms'; $('#sCorr').textContent = stats.sauts + ' saut(s) · ' + stats.doux + ' doux'; $('#sN').textContent = stats.drifts.length;
+    renderReport();
+  }, SYNC.every);
+  timers.push(loop);
+}
+function relancer(p, g, n) {
+  setTimeout(() => { if (g !== generation || !playing || p.getPlayerState() === YT.PlayerState.PLAYING || n >= 4) return; note('relance de la lecture (' + (n + 1) + ')'); p.playVideo(); relancer(p, g, n + 1); }, 1500);
+}
+// Écran : suit la position réelle de la console (médiane des 8 derniers relevés).
+let baseSamples = [];
+function suivreConsole(m) {
+  if (!playing || m.deck !== playing.deck) return;
+  const b = m.position - (m.at - offset) / 1000, cur = median(baseSamples);
+  if (cur != null && Math.abs(b - cur) > 1) baseSamples = [];
+  baseSamples.push(b); if (baseSamples.length > 8) baseSamples.shift();
+  playing.base = median(baseSamples);
+}
+
+// ---------- Console ----------
+let liste = [], index = 0, courante = null, readiness = {}, peers = [], minuterie = null;
+const diffuser = (m) => call('console_broadcast', { message: JSON.stringify(m) });
+async function asConsole() {
+  mode = 'console'; $('#consolePanel').hidden = false; $('#connectPanel').hidden = true; report.resultats.role = 'console';
+  const info = await call('console_start', { name: $('#name').value });
+  $('#addr').textContent = info.urls.join('   ou   ') || '—';
+  report.resultats.console = { adresses: info.urls };
+  ensureDeck('a'); ensureDeck('b');
+  timers.push(setInterval(async () => {
+    const i = await call('console_info'); if (!i) return;
+    $('#code').textContent = i.code.slice(0, 3) + ' ' + i.code.slice(3); peers = i.peers.filter(p => p.connected);
+    $('#peerCount').textContent = peers.length + ' écran(s) connecté(s)';
+    for (const m of await call('console_messages')) if (m.type === 'ready') { (readiness[m.peer] = readiness[m.peer] || {})[m.deck] = { video: m.video_id, ms: m.load_ms }; }
+    afficherPrets(); report.resultats.ecrans = peers.map(p => ({ nom: p.name, aller_retour_ms: p.rtt_ms, pret: readiness[p.id] || {} })); renderReport();
+  }, 500));
+}
+function afficherPrets() {
+  $('#readyTable').replaceChildren(...peers.map(p => el('tr', null, el('td', null, p.name), ...['a', 'b'].map(d => {
+    const r = (readiness[p.id] || {})[d], attendu = decks[d].video;
+    return el('td', { class: 'mono' }, !r ? '—' : (r.video === attendu ? 'prête · ' + r.ms + ' ms' : 'ancien titre'));
+  }))));
+}
+const prets = (d) => peers.filter(p => { const r = (readiness[p.id] || {})[d]; return r && r.video === decks[d].video; }).length;
+async function preparer(d, video) {
+  const position = +$('#startAt').value;
+  for (const id in readiness) delete readiness[id][d];
+  await diffuser({ type: 'cue', deck: d, source: { kind: 'youtube', video_id: video }, position });
+  return precharger(d, video, position);
+}
+async function preparePlaylist() {
+  liste = $('#playlist').value.split(/\s+/).filter(Boolean);
+  if (liste.length < 2) { $('#consoleState').textContent = 'Il faut au moins deux titres.'; return; }
+  index = 0; report.resultats.playlist = liste; transitions.length = 0;
+  $('#consoleState').textContent = 'Préchargement des deux premiers titres…';
+  await Promise.all([preparer('a', liste[0]), preparer('b', liste[1])]);
+  $('#launch').disabled = false;
+  $('#consoleState').textContent = 'Prêt. Attendez que les écrans affichent « prête » sur A et B, puis « Lancer ».';
+}
+// Change de titre. Appelé dans un clic (« Lancer », « Titre suivant ») ou par la minuterie.
+async function basculer(d, auto) {
+  clearTimeout(minuterie);
+  const t0 = Date.now();
+  if (auto) { while (prets(d) < peers.length && Date.now() - t0 < 3000) await sleep(100); }
+  const at = Date.now(), position = decks[d].position;
+  const k = index;
+  const tr = { titre: k + 1, video: decks[d].video, platine: d.toUpperCase(), ecrans_prets: prets(d) + '/' + peers.length, attente_ms: at - t0, console_prechargee: decks[d].pret, declenchement: auto ? 'automatique' : 'clic' };
+  transitions.push(tr); report.resultats.transitions = transitions;
+  courante = d; demarrer(d, position, at, true, tr);
+  await diffuser({ type: 'play', deck: d, position, at });
+  $('#next').disabled = false;
+  // L'autre platine doit tenir le titre d'après (déjà le cas au lancement).
+  const libre = d === 'a' ? 'b' : 'a', suivant = liste[(k + 1) % liste.length];
+  if (decks[libre].video !== suivant || !decks[libre].pret) setTimeout(() => { if (courante === d) preparer(libre, suivant); }, 1500);
+  index++;
+  if ($('#auto').checked) minuterie = setTimeout(() => basculer(libre, true), +$('#duree').value * 1000);
+}
+function boucleConsole(g, d) {
+  const loop = setInterval(async () => {
+    if (!playing || g !== generation) { clearInterval(loop); return; }
+    const p = decks[d].player; if (p.getPlayerState() !== YT.PlayerState.PLAYING) return;
+    await diffuser({ type: 'position', deck: d, position: p.getCurrentTime(), at: Date.now() });
+  }, 500);
+  timers.push(loop);
+}
+async function stopAll() {
+  clearTimeout(minuterie); playing = null; generation++; couper('a'); couper('b');
+  if (mode === 'console') await diffuser({ type: 'pause', deck: courante || 'a', position: 0 });
+}
+
+// ---------- Écran ----------
+let cible = null, reconnexion = null;
+function asScreen() {
+  try { const last = localStorage.getItem('lems.essai5.console'); if (last && !$('#url').value) $('#url').value = last; } catch (e) {}
+  mode = 'screen'; $('#connectPanel').hidden = false; $('#consolePanel').hidden = true; report.resultats.role = 'écran';
+  ensureDeck('a'); ensureDeck('b');
+}
+async function discover() {
+  let l = [];
+  for (let i = 1; i <= 3 && !l.length; i++) { $('#connState').textContent = 'Recherche… (' + i + '/3)'; l = await call('discover', { timeoutMs: 4000 }); }
+  if (l.length) $('#url').value = l[0].url || '';
+  $('#connState').textContent = l.length ? 'Console trouvée : ' + l[0].name : 'Aucune console trouvée. Recopiez l’adresse affichée sur la console.';
+}
+async function connect() {
+  if (!$('#url').value.trim()) { $('#connState').replaceChildren(el('span', { class: 'err' }, 'Saisissez l’adresse de la console.')); return; }
+  $('#connect').disabled = true; $('#connState').textContent = 'Connexion…';
+  cible = { url: $('#url').value.trim(), code: $('#pin').value.trim(), name: $('#name').value, role: 'screen' };
+  try {
+    const name = await call('device_connect', cible);
+    try { localStorage.setItem('lems.essai5.console', cible.url); } catch (e) {}
+    report.resultats.connexion = 'connecté à ' + name; renderReport();
+    $('#connState').textContent = 'Connecté à « ' + name + ' ». Les titres se préchargent quand la console prépare la playlist.';
+    try { if (navigator.wakeLock) await navigator.wakeLock.request('screen'); } catch (e) {}
+    timers.push(setInterval(surveiller, 500)); timers.push(setInterval(commandes, 100));
+  } catch (e) { cible = null; $('#connect').disabled = false; report.resultats.erreur_connexion = String(e); renderReport(); $('#connState').replaceChildren(el('span', { class: 'err' }, String(e))); }
+}
+async function surveiller() {
+  const s = await call('device_status');
+  if (s && s.offset_ms != null) { offset = s.offset_ms; report.resultats.horloge = s; }
+  if (s && s.connected === false && cible && !reconnexion) {
+    const d = report.resultats.deconnexions = report.resultats.deconnexions || [], perte = Date.now();
+    d.push({ perdue_a: new Date().toLocaleTimeString(), retablie_apres_s: null });
+    $('#connState').replaceChildren(el('span', { class: 'err' }, 'Connexion perdue. Reconnexion automatique…'));
+    reconnexion = setInterval(async () => { try { await call('device_connect', cible); clearInterval(reconnexion); reconnexion = null; d[d.length - 1].retablie_apres_s = +((Date.now() - perte) / 1000).toFixed(1); $('#connState').textContent = 'Reconnecté.'; } catch (e) {} renderReport(); }, 2000);
+  }
+  renderReport();
+}
+let enAttente = Promise.resolve();
+async function commandes() {
+  for (const m of await call('device_messages')) {
+    if (m.type === 'cue' && m.source && m.source.kind === 'youtube') {
+      // Les préchargements passent l'un après l'autre ; la réponse part dès que la platine est prête.
+      enAttente = enAttente.then(async () => {
+        try { const ms = await precharger(m.deck, m.source.video_id, m.position); if (ms != null) await call('device_send', { message: JSON.stringify({ type: 'ready', deck: m.deck, video_id: m.source.video_id, load_ms: ms }) }); }
+        catch (e) { note('préchargement ' + m.deck.toUpperCase() + ' impossible : ' + e); }
+      });
+    } else if (m.type === 'play') {
+      const tr = { video: decks[m.deck].video, platine: m.deck.toUpperCase(), prechargee: decks[m.deck].pret, ordre_recu_apres_ms: Math.round(Date.now() - (m.at - offset)) };
+      transitions.push(tr); report.resultats.transitions = transitions;
+      tr.titre = transitions.length;
+      demarrer(m.deck, m.position, m.at - offset, false, tr);
+    } else if (m.type === 'position') suivreConsole(m);
+    else if (m.type === 'pause') { playing = null; generation++; couper('a'); couper('b'); }
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const n = appOnlyNotice(); if (n) $('#notice').append(n);
+  $('#name').value = (navigator.userAgent.includes('Android') ? 'Android' : 'Ordinateur') + ' (essai 6)';
+  $('#asConsole').onclick = asConsole; $('#asScreen').onclick = asScreen; $('#discover').onclick = discover; $('#connect').onclick = connect;
+  $('#prepare').onclick = preparePlaylist; $('#launch').onclick = () => { $('#launch').disabled = true; basculer('a', false); };
+  $('#next').onclick = () => basculer(courante === 'a' ? 'b' : 'a', false); $('#stopAll').onclick = stopAll;
+  document.querySelector('main').append(reportPanel());
+});
+</script>
+</body>
+</html>
