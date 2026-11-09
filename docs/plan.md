@@ -244,3 +244,23 @@ Constats tirés des maquettes, à confirmer par les prototypes (étape 2) :
 - **Changement de titre** : la console attend que tous les écrans aient répondu « prête » (3 s au plus en enchaînement automatique), bascule sa propre platine préchargée, puis ordonne la lecture à tous ; chaque écran coupe l'autre platine et suit la position réelle de la console, comme à l'essai 5. La platine libérée précharge aussitôt le titre d'après ; la playlist tourne en boucle.
 - **Rapports** : préchargements (durée, réussite), et pour chaque titre : écrans prêts, attente, temps de démarrage après l'ordre, écart médian avec la console.
 - Vérifié dans le cloud avec un faux lecteur : 14 vérifications (préchargement des deux premiers titres, réponses « prête », titre déjà préchargé non rechargé, enchaînement automatique, bascule A → B avec coupure de A, démarrage 50 ms après l'heure prévue, écart médian 4 ms).
+
+## Bilan de l'étape 2 (9 novembre 2026) — on continue
+
+Les six essais ont levé les risques de la section 2, sauf deux points reportés. Ce qu'ils imposent à l'application :
+
+| Question | Réponse des essais | Conséquence pour l'application |
+|---|---|---|
+| Quatre lecteurs YouTube ensemble | Oui, sur Mac et sur un téléphone Android récent (charge 0,6 à 1,8 s chacun, 20 Mo) | 4 platines YouTube en version 1 ; à revérifier sur Android d'entrée de gamme avant une console Android |
+| SYNC fin sur YouTube | Non : vitesses par pas de 0,05, arrondies vers le bas ; chaque changement fige le lecteur ~0,2 s | Pas de SYNC ni de tempo sur une platine YouTube ; **on ne touche jamais à la vitesse d'une platine à l'antenne** |
+| Adresse de la page | YouTube refuse `tauri://` sur Mac (erreur 153) ; `http://tauri.localhost` passe sur Windows et Android | Sur Mac, interface servie en `http://localhost` (greffon localhost) ; ailleurs, adresse par défaut |
+| Deux sorties son | Mac : oui (cpal, correctif « réglages illisibles » à garder) ; Android : non, une seule sortie par application ; PC : non testé | Casque séparé sur ordinateur seulement ; sur Android, carte USB 4 canaux plus tard |
+| Appairage et réseau | SPAKE2 par code, chiffrement, 3 à 10 ms d'aller-retour ; mDNS fiable Mac → PC seulement | Garder le code à 6 chiffres ; ajouter QR code et adresse affichée ; prévoir une annonce de secours |
+| Écran synchronisé | 2 à 6 ms (PC), 11 à 17 ms (Android) avec la console pour référence | Console sans correction, position réelle 2×/s, écrans en rattrapage doux, reconnexion automatique, écran maintenu allumé |
+| Changement de titre | Lecteur Android : ~7 s au démarrage ; préchargement sur une seconde platine validé en simulation | Deux lecteurs par écran de sortie, préchargement du titre suivant, bascule sur ordre de la console |
+| Deuxième écran | Mac : plein écran sur l'écran choisi (placement en points) ; Android : une seule fenêtre | Fenêtre de sortie sur ordinateur ; module natif Android plus tard |
+| Horloges | Dérive de 65 ms/h entre appareils, recalages système | Mesure continue de l'écart, jamais une mesure unique |
+
+Reportés : essais 1 et 2 sur PC Windows (PC indisponible), essai 6 sur appareils réels, Android d'entrée de gamme.
+
+**Décision : passage à l'étape 3**, la version 1 pour ordinateur, dans `app/` (Tauri 2.12.3 + React, design system « Lems VJ Player » tel quel, cœur Rust des essais repris). Les essais restent dans `prototypes/` comme référence.
