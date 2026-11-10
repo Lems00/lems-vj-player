@@ -1,0 +1,32 @@
+/* Jetons du design system « Lems VJ Player » (project/tokens.json, version 1).
+   Un seul thème : la console est sombre, la vidéo de sortie reste l'élément le plus lumineux. */
+:root {
+  color-scheme: dark;
+
+  --surface: #0e0f12;
+  --surface-raised: #1a1c21;
+  --line: #2c2f36;
+  --ink: #eef0f3;
+  --ink-muted: #9aa0aa;
+  --deck-a: #3aa0ff;
+  --deck-b: #ff8a1f;
+  --deck-c: #3ddc97;
+  --deck-d: #f05ad8;
+  --on-air: #ff4d4d;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-4: 16px;
+  --space-6: 24px;
+
+  --radius-sm: 2px;
+  --radius-md: 6px;
+  --radius-full: 9999px;
+}
+
+html, body { height: 100%; }
+body { margin: 0; background: var(--surface); color: var(--ink); font: 400 14px/20px var(--font-sans); -webkit-font-smoothing: antialiased; }
+#root { min-height: 100%; }

@@ -1,0 +1,73 @@
+/* Mise en page de l'application. Les composants viennent du design system (lems.css). */
+.app { min-height: 100%; display: flex; flex-direction: column; }
+.view { padding: var(--space-4) var(--space-6) var(--space-6); max-width: 1440px; width: 100%; box-sizing: border-box; margin: 0 auto; }
+
+/* ---- Console (vue 1) ---- */
+.console { display: grid; grid-template-columns: minmax(0, 1fr) 472px minmax(0, 1fr); gap: var(--space-4); }
+.col { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.mixer { display: flex; flex-direction: column; gap: var(--space-4); }
+.strips { display: flex; gap: var(--space-2); }
+.master { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); width: 88px; padding: var(--space-4) 0; box-sizing: border-box; background: var(--surface-raised); border-radius: var(--radius-md); }
+.master-name { height: 28px; display: flex; align-items: center; font: 600 11px/14px var(--font-sans); letter-spacing: 0.8px; text-transform: uppercase; color: var(--ink); }
+.master-rule { width: 40px; height: 1px; background: var(--line); }
+.master-vu { margin-top: auto; display: flex; gap: var(--space-1); }
+.xfaders { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); background: var(--surface-raised); border-radius: var(--radius-md); }
+.search { grid-column: 1 / -1; }
+.hint { grid-column: 2; margin: 0; font: 400 13px/18px var(--font-sans); color: var(--ink-muted); }
+.error { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; margin: 0; font-weight: 600; color: var(--ink); }
+.error::before { content: "!"; display: inline-flex; width: 16px; height: 16px; border-radius: var(--radius-full); background: var(--ink); color: var(--surface); font: 700 11px/16px var(--font-sans); justify-content: center; }
+
+/* Emplacement d'un lecteur dans un moniteur : le lecteur lui-même est posé par-dessus (voir Stage). */
+.slot { position: absolute; inset: 0; }
+.monitor-note { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); padding: var(--space-4); text-align: center; font: 400 13px/18px var(--font-sans); color: var(--ink-muted); }
+.monitor-note b { font: 600 14px/20px var(--font-sans); color: var(--ink); }
+
+/* Platines hors moniteur : leur lecteur reste visible, en petit (règle YouTube : 200 × 200 au minimum). */
+.tray { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2); background: var(--surface-raised); border-radius: var(--radius-md); }
+.tray:empty { display: none; }
+.tray-tile { position: relative; width: 356px; height: 200px; border-radius: var(--radius-sm); overflow: hidden; background: var(--surface); }
+.tray-tile .lm-letter { position: absolute; left: var(--space-2); top: var(--space-2); z-index: 1; }
+
+/* La scène : les quatre lecteurs YouTube, posés sur les emplacements mesurés. */
+.stage-player { position: fixed; left: 0; top: 0; width: 356px; height: 200px; overflow: hidden; border-radius: var(--radius-sm); background: #000; z-index: 5; }
+.stage-player.is-parked { left: 0 !important; top: 100vh !important; }
+.stage-player iframe { display: block; border: 0; }
+
+/* ---- Bibliothèque (vue 2) ---- */
+.library { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--space-4); }
+.side { display: flex; flex-direction: column; gap: var(--space-4); }
+.panel { background: var(--surface-raised); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.panel h2 { margin: 0 0 var(--space-1); font: 600 11px/14px var(--font-sans); letter-spacing: 0.8px; text-transform: uppercase; color: var(--ink-muted); }
+.panel h3 { margin: 0; font: 600 16px/22px var(--font-sans); color: var(--ink); }
+.nav-item { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); height: 36px; padding: 0 12px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink-muted); font: 400 14px/20px var(--font-sans); text-align: left; cursor: pointer; }
+.nav-item:hover { color: var(--ink); }
+.nav-item.is-active { background: var(--surface); color: var(--ink); font-weight: 600; }
+.nav-item small { font: 500 12px/16px var(--font-mono); color: var(--ink-muted); }
+.toolbar { display: flex; gap: var(--space-2); align-items: center; margin-bottom: var(--space-4); }
+.toolbar .lm-field { flex: 1; }
+.main-panel { background: var(--surface-raised); border-radius: var(--radius-md); padding: var(--space-4); }
+.load-group { display: inline-flex; gap: var(--space-1); }
+.iconbtn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: var(--radius-sm); background: transparent; color: var(--ink-muted); cursor: pointer; }
+.iconbtn:hover { color: var(--ink); border-color: var(--ink-muted); }
+.iconbtn.is-on { color: var(--ink); border-color: var(--ink); }
+.muted { color: var(--ink-muted); }
+.row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.spacer { flex: 1; }
+
+/* ---- Réglages (vue 3) ---- */
+.settings { display: grid; grid-template-columns: 220px minmax(0, 1fr) 360px; gap: var(--space-4); align-items: start; }
+.settings-section { display: flex; flex-direction: column; gap: 0; background: var(--surface-raised); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4); }
+.settings-section h3 { margin: 0 0 var(--space-2); font: 600 16px/22px var(--font-sans); color: var(--ink); }
+.setting { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-4); align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.setting:first-of-type { border-top: 0; }
+.setting-label { display: flex; flex-direction: column; }
+.setting-label b { font: 600 14px/20px var(--font-sans); color: var(--ink); }
+.setting-label span { font: 400 13px/18px var(--font-sans); color: var(--ink-muted); }
+.setting-control { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; min-width: 0; }
+.setting-control .lm-select { flex: 1; min-width: 200px; }
+.quota { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px; margin: var(--space-2) 0; }
+.quota i { height: 8px; border-radius: 1px; background: var(--line); }
+.quota i.is-on { background: var(--ink-muted); }
+.about dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-4); margin: 0; }
+.about dt { color: var(--ink-muted); }
+.about dd { margin: 0; font-family: var(--font-mono); }

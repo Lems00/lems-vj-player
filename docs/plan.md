@@ -264,3 +264,13 @@ Les six essais ont levé les risques de la section 2, sauf deux points reportés
 Reportés : essais 1 et 2 sur PC Windows (PC indisponible), essai 6 sur appareils réels, Android d'entrée de gamme.
 
 **Décision : passage à l'étape 3**, la version 1 pour ordinateur, dans `app/` (Tauri 2.12.3 + React, design system « Lems VJ Player » tel quel, cœur Rust des essais repris). Les essais restent dans `prototypes/` comme référence.
+
+## Étape 3 — version 1 ordinateur (commencée le 9 novembre 2026)
+
+Dossier `app/` (Tauri 2.12.3, React 19, Vite, TypeScript ; cœur Rust des essais repris : son, réseau, écrans ; design system vendorisé tel quel). Première version complète des trois vues et de la fenêtre de sortie — voir `app/README.md` et les captures `docs/captures/v1-*.png` (lecteurs YouTube remplacés par des doublures grises).
+
+- **Console** (vue 1) : 4 platines YouTube réelles, mixeur appliqué aux volumes des lecteurs, crossfaders A/B et C/D (3 courbes), moniteurs (2 prévisualisations + sortie), recherche (lien collé sans clé ; mots-clés avec clé, quota compté). Les lecteurs vivent dans une « scène » au niveau de l'application et sont posés sur les moniteurs : changer de vue ne les détruit pas ; une platine hors moniteur reste visible en 356 × 200.
+- **Bibliothèque** (vue 2) : historique, favoris, playlists, filtre, chargement sur A/B/C/D. **Réglages** (vue 3) : son, latence, courbe, écran de sortie, plein écran, transition, titre, clé YouTube, appareils, à propos. Enregistrés en JSON dans le dossier de données (écriture atomique).
+- **Sortie** (vue 7a) : fenêtre sur l'écran choisi, deux lecteurs muets, suivi de la lecture réelle (follower des essais 5/6), préchargement de la platine suivante, coupe franche, titre optionnel, Échap.
+- Vérifié dans le cloud : TypeScript sans erreur, `cargo check` Windows, **41 vérifications des pages** avec doublures (voir `app/tests/`). Compilation automatique Mac + Windows : `.github/workflows/application.yml`.
+- À faire ensuite, sur appareils : vrai YouTube dans la console (Mac), fenêtre de sortie sur l'écran externe, puis raccourcis clavier, BPM au tap, et l'étape 5 (appareils distants) sur le même cœur réseau.

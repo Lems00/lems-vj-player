@@ -1,0 +1,33 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "localhost",
+  "description": "Sur Mac, les pages sont servies en http://localhost (YouTube refuse tauri://, essai 1).",
+  "windows": ["main", "sortie"],
+  "remote": { "urls": ["http://localhost:14870/*"] },
+  "permissions": [
+    "core:default",
+    "allow-platform-info",
+    "allow-last-crash",
+    "allow-store-get",
+    "allow-store-set",
+    "allow-audio-devices",
+    "allow-audio-inventory",
+    "allow-audio-start",
+    "allow-audio-stats",
+    "allow-audio-stop",
+    "allow-console-start",
+    "allow-console-info",
+    "allow-console-new-code",
+    "allow-console-broadcast",
+    "allow-console-messages",
+    "allow-discover",
+    "allow-device-connect",
+    "allow-device-status",
+    "allow-device-messages",
+    "allow-device-send",
+    "allow-now-ms",
+    "allow-list-monitors",
+    "allow-open-output",
+    "allow-close-output"
+  ]
+}

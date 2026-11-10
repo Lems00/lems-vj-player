@@ -1,0 +1,32 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Fenêtres de l'application : console et sortie.",
+  "windows": ["main", "sortie"],
+  "permissions": [
+    "core:default",
+    "allow-platform-info",
+    "allow-last-crash",
+    "allow-store-get",
+    "allow-store-set",
+    "allow-audio-devices",
+    "allow-audio-inventory",
+    "allow-audio-start",
+    "allow-audio-stats",
+    "allow-audio-stop",
+    "allow-console-start",
+    "allow-console-info",
+    "allow-console-new-code",
+    "allow-console-broadcast",
+    "allow-console-messages",
+    "allow-discover",
+    "allow-device-connect",
+    "allow-device-status",
+    "allow-device-messages",
+    "allow-device-send",
+    "allow-now-ms",
+    "allow-list-monitors",
+    "allow-open-output",
+    "allow-close-output"
+  ]
+}

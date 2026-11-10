@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- macOS demande l'autorisation « réseau local » pour trouver les appareils (essais 3 et 5). -->
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>Lems VJ Player cherche et connecte vos appareils (tablette, écran) sur le Wi-Fi.</string>
+  <key>NSBonjourServices</key>
+  <array>
+    <string>_lemsvj._tcp</string>
+  </array>
+</dict>
+</plist>

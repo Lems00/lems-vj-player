@@ -1,0 +1,13 @@
+html, body, #root { height: 100%; margin: 0; background: #000; overflow: hidden; }
+body { cursor: none; }
+.output { position: fixed; inset: 0; background: #000; }
+.output-player { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.output-player.is-shown { opacity: 1; }
+.output-player iframe { width: 100%; height: 100%; border: 0; display: block; }
+.output-idle { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: var(--surface); color: var(--ink-muted); font: 400 16px/24px var(--font-sans); text-align: center; padding: 24px; }
+.output-kicker { font: 600 11px/14px var(--font-sans); letter-spacing: 0.8px; text-transform: uppercase; }
+.output-idle b { font: 700 28px/34px var(--font-sans); color: var(--ink); }
+.output-title { position: absolute; left: 4vw; bottom: 6vh; display: flex; flex-direction: column; gap: 4px; padding: 16px 20px; background: rgba(14, 15, 18, 0.82); border-radius: var(--radius-md); color: var(--ink); animation: output-title 6s linear forwards; }
+.output-title b { font: 700 clamp(18px, 2.4vw, 36px)/1.2 var(--font-sans); }
+.output-title span { font: 400 clamp(13px, 1.4vw, 20px)/1.3 var(--font-sans); color: var(--ink-muted); }
+@keyframes output-title { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }

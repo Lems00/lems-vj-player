@@ -1,0 +1,119 @@
+# Compilation automatique de l'application (étape 3 du plan, version 1 ordinateur).
+#
+# Se lance quand l'application ou le cœur changent sur main, ou à la main.
+# Produit deux fichiers à télécharger en bas de la page de la compilation :
+#   - application-mac      : l'application pour Mac (processeurs Apple et Intel)
+#   - application-windows  : l'installateur pour Windows
+# Les applications ne sont pas signées (étape 6 du plan) : voir app/README.md.
+
+name: Application — compilation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "prototypes/core/**"
+      - ".github/workflows/application.yml"
+
+concurrency:
+  group: application-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verifications:
+    name: Vérifications (TypeScript, pages, cœur)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: prototypes/core -> target
+      - name: Tests du cœur
+        working-directory: prototypes/core
+        run: cargo test --locked
+      - name: Outils JavaScript
+        working-directory: app
+        run: npm ci
+      - name: TypeScript et construction des pages
+        working-directory: app
+        run: npm run build
+      - name: Navigateur de test
+        working-directory: app
+        run: |
+          npm install --no-save playwright@1.64.1
+          npx playwright install --with-deps chromium
+      - name: Vérifications des pages (doublures YouTube et application)
+        working-directory: app
+        run: node tests/run.mjs
+
+  bureau:
+    name: Application ${{ matrix.nom }}
+    needs: verifications
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nom: Mac
+            os: macos-26
+            cibles: aarch64-apple-darwin,x86_64-apple-darwin
+            args: --target universal-apple-darwin --bundles app
+            artefact: application-mac
+          - nom: Windows
+            os: windows-2022
+            cibles: ""
+            args: --bundles nsis
+            artefact: application-windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.cibles }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri -> target
+      - name: Outils JavaScript
+        working-directory: app
+        run: npm ci
+      - name: Compilation
+        working-directory: app
+        run: npm run tauri -- build --ci ${{ matrix.args }}
+      - name: Préparer le fichier Mac
+        if: matrix.nom == 'Mac'
+        run: |
+          cd app/src-tauri/target/universal-apple-darwin/release/bundle/macos
+          ditto -c -k --keepParent "Lems VJ Player.app" "$GITHUB_WORKSPACE/Lems-VJ-Player-mac.zip"
+      - name: Déposer le fichier Mac
+        if: matrix.nom == 'Mac'
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.artefact }}
+          path: Lems-VJ-Player-mac.zip
+          if-no-files-found: error
+          retention-days: 30
+      - name: Déposer le fichier Windows
+        if: matrix.nom == 'Windows'
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.artefact }}
+          path: app/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 30
