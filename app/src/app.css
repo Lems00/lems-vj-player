@@ -66,6 +66,9 @@
 .screen-leave:hover, .screen-leave:focus-visible { opacity: 1; }
 @media (max-width: 899px) { .lm-appbar { padding: 0 var(--space-4); } }
 
+/* Le design system prévoit un QR code ; en attendant un vrai, on le dit plutôt que d'afficher un faux motif. */
+.qr-soon { display: flex; align-items: center; justify-content: center; width: 150px; height: 150px; text-align: center; font: 600 13px/18px var(--font-sans); color: var(--surface); }
+
 /* ---- Bibliothèque (vue 2) ---- */
 .library { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--space-4); }
 .side { display: flex; flex-direction: column; gap: var(--space-4); }

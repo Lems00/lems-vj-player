@@ -41,7 +41,7 @@ export interface LemsApi {
   Toggle: ComponentType<AnyProps & { checked?: boolean; onChange?: (v: boolean) => void; label?: string; hint?: string; disabled?: boolean }>;
   SegmentedControl: ComponentType<AnyProps & { value: string; onChange: (v: string) => void; options: SelectOption[]; reason?: string; disabled?: boolean }>;
   Notice: ComponentType<AnyProps & { title?: string; children?: ReactNode }>;
-  PairingCode: ComponentType<AnyProps & { code: string; expiresIn?: string; expired?: boolean; qr?: boolean[] }>;
+  PairingCode: ComponentType<AnyProps & { code: string; expiresIn?: number; note?: string; qr?: ReactNode; onRenew?: () => void }>;
   Dialog: ComponentType<AnyProps & { open?: boolean; title: string; onClose?: () => void; actions?: ReactNode; children?: ReactNode; contained?: boolean }>;
   Table: ComponentType<AnyProps & { columns: TableColumn[]; rows: Record<string, unknown>[]; rowKey?: (row: Record<string, unknown>, i: number) => string; selectedKey?: string; onRowClick?: (row: Record<string, unknown>, key: string) => void }>;
   DeviceRow: ComponentType<AnyProps & { name: string; state?: 'connected' | 'pending' | 'offline' | 'unstable'; detail?: string; role?: string; onRoleChange?: (r: string) => void; actions?: ReactNode }>;

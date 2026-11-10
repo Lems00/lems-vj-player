@@ -139,7 +139,8 @@ export function Settings({ settings, onChange, library }: SettingsProps) {
             </Setting>
             {!inApp() ? <L.Notice>Disponible dans l’application.</L.Notice> : netError ? <p className="error" role="alert">{netError}</p> : consoleInfo ? (<>
               <Setting label="Code d’appairage" hint="À saisir sur l’appareil ; change après trois erreurs">
-                <L.PairingCode code={consoleInfo.code} expiresIn={consoleInfo.urls.length ? 'Adresse : ' + consoleInfo.urls.join(' ou ') : 'Aucune adresse réseau : cet ordinateur est-il sur le Wi-Fi ?'} />
+                <L.PairingCode code={consoleInfo.code} note={consoleInfo.urls.length ? 'adresse ' + consoleInfo.urls.join(' ou ') : 'aucune adresse réseau : cet ordinateur est-il sur le Wi-Fi ?'}
+                  qr={<span className="qr-soon" aria-label="QR code : prochaine version">QR<br />bientôt</span>} />
                 <L.Button size="sm" onClick={() => void call('console_new_code')}>Nouveau code</L.Button>
               </Setting>
               <div>
