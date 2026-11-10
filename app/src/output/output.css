@@ -1,5 +1,5 @@
-html, body, #root { height: 100%; margin: 0; background: #000; overflow: hidden; }
-body { cursor: none; }
+/* La fenêtre de sortie et l'écran distant. Les règles de page (fond noir, curseur caché) sont dans page.css,
+   chargées seulement par output.html : ce fichier est aussi utilisé par la console (rôle écran). */
 .output { position: fixed; inset: 0; background: #000; }
 .output-player { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
 .output-player.is-shown { opacity: 1; }

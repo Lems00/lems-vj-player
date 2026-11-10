@@ -1,0 +1,3 @@
+/* Page de la fenêtre de sortie (output.html) : fond noir, rien ne dépasse, curseur caché. */
+html, body, #root { height: 100%; margin: 0; background: #000; overflow: hidden; }
+body { cursor: none; }
