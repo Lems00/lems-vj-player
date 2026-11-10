@@ -17,6 +17,13 @@
 .error { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; margin: 0; font-weight: 600; color: var(--ink); }
 .error::before { content: "!"; display: inline-flex; width: 16px; height: 16px; border-radius: var(--radius-full); background: var(--ink); color: var(--surface); font: 700 11px/16px var(--font-sans); justify-content: center; }
 
+.deck-block { display: flex; flex-direction: column; gap: var(--space-1); }
+.deck-tools { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-1); min-height: 24px; }
+.tapbtn { height: 24px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: transparent; color: var(--ink-muted); font: 600 11px/14px var(--font-sans); letter-spacing: 0.8px; cursor: pointer; }
+.tapbtn:hover:not(:disabled) { color: var(--ink); border-color: var(--ink-muted); }
+.tapbtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.deck-focus { margin-left: auto; font: 600 11px/14px var(--font-sans); letter-spacing: 0.8px; text-transform: uppercase; color: var(--ink-muted); }
+
 /* Emplacement d'un lecteur dans un moniteur : le lecteur lui-même est posé par-dessus (voir Stage). */
 .slot { position: absolute; inset: 0; }
 .monitor-note { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); padding: var(--space-4); text-align: center; font: 400 13px/18px var(--font-sans); color: var(--ink-muted); }

@@ -58,7 +58,7 @@ Compiler une application installable : `npm run app:build`. La compilation autom
 npm run build && npm test
 ```
 
-41 vérifications des trois vues et de la fenêtre de sortie, avec un faux lecteur YouTube et une fausse application : elles prouvent la logique des pages, pas le comportement du vrai YouTube. Côté Rust : `cargo check` dans `src-tauri/` (Windows : `--target x86_64-pc-windows-msvc`).
+46 vérifications des trois vues et de la fenêtre de sortie, avec un faux lecteur YouTube et une fausse application : elles prouvent la logique des pages, pas le comportement du vrai YouTube. Côté Rust : `cargo check` dans `src-tauri/` (Windows : `--target x86_64-pc-windows-msvc`).
 
 ## Clé YouTube
 

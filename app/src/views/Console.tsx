@@ -1,5 +1,5 @@
 // Vue 1 — la console : quatre platines, le mixeur, les moniteurs, la recherche.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DECKS, L, type DeckId, type SearchResult } from '../design';
 import { engine, useEngine } from '../engine';
 import { Tray, assignSlots } from '../Stage';
@@ -29,6 +29,37 @@ export function Console({ settings, library, onLibraryChange }: ConsoleProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const taps = useRef<Partial<Record<DeckId, number[]>>>({});
+
+  // BPM au tap : au moins 4 frappes, médiane des intervalles ; une pause de 2 s recommence.
+  function tap(d: DeckId) {
+    const now = performance.now(), list = (taps.current[d] ?? []).filter((t) => now - t < 2000);
+    list.push(now); taps.current[d] = list.slice(-12);
+    if (list.length >= 4) {
+      const gaps = list.slice(1).map((t, i) => t - list[i]).sort((x, y) => x - y);
+      const med = gaps[gaps.length >> 1];
+      engine.setBpm(d, Math.round((60000 / med) * 10) / 10);
+    }
+  }
+
+  // Raccourcis (indépendants de la disposition du clavier : chiffres, flèches, espace).
+  // 1–4 : lecture/pause A–D · Maj+1–4 : repère A–D · ←/→ : crossfader A/B · Maj+←/→ : C/D · Espace : platine active · T : BPM au tap.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      const m = /^Digit([1-4])$/.exec(e.code);
+      if (m) { const d = DECKS[+m[1] - 1]; e.preventDefault(); e.shiftKey ? engine.cue(d) : engine.toggle(d); engine.focus(d); return; }
+      if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+        const pair = e.shiftKey ? 'cd' : 'ab', cur = engine.getState().mix[pair];
+        e.preventDefault(); engine.setCrossfader(pair, cur + (e.code === 'ArrowRight' ? 0.1 : -0.1)); return;
+      }
+      if (e.code === 'Space') { const d = engine.focused ?? engine.program(); if (d) { e.preventDefault(); engine.toggle(d); } return; }
+      if (e.code === 'KeyT') { const d = engine.focused ?? engine.program(); if (d) { e.preventDefault(); tap(d); } }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   async function search(q: string) {
     if (!q.trim()) return;
@@ -56,12 +87,19 @@ export function Console({ settings, library, onLibraryChange }: ConsoleProps) {
   function deckView(d: DeckId) {
     const dk = st.decks[d], t = dk.track;
     return (
-      <L.Deck key={d} deck={d} source="youtube" title={t?.title} artist={t ? (t.channel || 'YouTube') : undefined}
+      <div key={d} className="deck-block" onPointerDownCapture={() => engine.focus(d)}>
+      <L.Deck deck={d} source="youtube" title={t?.title} artist={t ? (t.channel || 'YouTube') : undefined}
         duration={dk.duration} bpm={t?.bpm ?? null} keyName={t ? (t.bpm ? 'YouTube · BPM au tap' : 'YouTube · tempo fixe') : null}
         position={dk.position} cuePoint={dk.cuePoint} playing={dk.playing} peaks={FLAT_PEAKS}
         onPlayingChange={(p: boolean) => (p ? engine.play(d) : engine.pause(d))}
         onCue={() => engine.cue(d)} onSeek={(s: number) => engine.seek(d, s)}
         prelisten={st.mix.strips[d].prelisten} onAir={onAir.includes(d)} />
+      <div className="deck-tools">
+        <button type="button" className={'tapbtn lm-deck-' + d} disabled={!t} aria-label={'BPM au tap, platine ' + d.toUpperCase()} title="Frappez en rythme, 4 fois au moins (ou touche T)" onClick={() => tap(d)}>TAP BPM</button>
+        {t?.bpm ? <button type="button" className="tapbtn" aria-label="Effacer le BPM" onClick={() => { taps.current[d] = []; engine.setBpm(d, undefined); }}>Effacer</button> : null}
+        {engine.focused === d ? <span className="deck-focus" aria-label="Platine commandée au clavier">clavier</span> : null}
+      </div>
+      </div>
     );
   }
 
@@ -115,7 +153,7 @@ export function Console({ settings, library, onLibraryChange }: ConsoleProps) {
       </div>
       <div className="col">{deckView('b')}{deckView('d')}</div>
 
-      <p className="hint">Platines YouTube : lecture, repère, position et volume. Gain, égaliseur, casque séparé et SYNC sont indisponibles (règles de YouTube). Le casque et son mélange serviront aux fichiers locaux.</p>
+      <p className="hint">Platines YouTube : lecture, repère, position et volume. Gain, égaliseur, casque séparé et SYNC sont indisponibles (règles de YouTube). Le casque et son mélange serviront aux fichiers locaux.<br />Clavier : 1–4 lecture/pause A–D · Maj+1–4 repère · ←/→ crossfader A/B (Maj : C/D) · Espace platine active · T tap BPM.</p>
       {error ? <p className="error" role="alert">{error}</p> : null}
       <div className="search">
         <L.TrackSearch query={query} onQueryChange={setQuery} onSearch={search} loading={loading} results={results} loaded={loadedIds} onLoad={load}

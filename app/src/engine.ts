@@ -117,7 +117,7 @@ export class Engine {
     this.showPreview(d);
   }
   eject(d: DeckId) { this.players[d]?.stop(); this.patchDeck(d, emptyDeck()); }
-  play(d: DeckId) { if (!this.state.decks[d].track) return; this.patchDeck(d, { playing: true }); this.players[d]?.play(); }
+  play(d: DeckId) { if (!this.state.decks[d].track) return; this.focused = d; this.patchDeck(d, { playing: true }); this.players[d]?.play(); }
   pause(d: DeckId) { this.patchDeck(d, { playing: false }); this.players[d]?.pause(); }
   toggle(d: DeckId) { this.state.decks[d].playing ? this.pause(d) : this.play(d); }
   /** CUE : en lecture, revient au repère et s'arrête ; à l'arrêt, pose le repère ici. */
@@ -133,7 +133,13 @@ export class Engine {
     }
   }
   seek(d: DeckId, seconds: number) { this.players[d]?.seek(seconds); this.patchDeck(d, { position: seconds }); }
-  setBpm(d: DeckId, bpm: number | undefined) { const t = this.state.decks[d].track; if (t) this.patchDeck(d, { track: { ...t, bpm } }); }
+  setBpm(d: DeckId, bpm: number | undefined) {
+    const t = this.state.decks[d].track; if (!t) return;
+    const track = { ...t, bpm }; this.patchDeck(d, { track }); this.onTrackLoaded?.(track);
+  }
+  /** La platine que le clavier commande : la dernière touchée, sinon celle à l'antenne. */
+  focused: DeckId | null = null;
+  focus(d: DeckId) { this.focused = d; }
 
   // ----- mixeur -----
   setStrip(d: DeckId, v: StripValue) {

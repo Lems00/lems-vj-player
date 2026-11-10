@@ -97,6 +97,18 @@ await p.waitForTimeout(400);
 ok(overlaps(await rect(p, '[data-stage=b]'), await rect(p, '[data-slot=right]')), 'Console : B chargée s’affiche dans la prévisualisation de droite');
 const lib = JSON.parse(await p.evaluate(() => localStorage.getItem('fakestore.library') || '{}'));
 ok(lib.tracks && lib.tracks.some((t) => t.id === 'eRsGyueVLvQ') && lib.quota.searches === 1, 'Console : historique et quota enregistrés (' + (lib.quota && lib.quota.searches) + ' recherche)');
+// clavier : 2 lance B, Maj+2 la ramène au repère, flèches = crossfader, T = tap
+await p.click('body', { position: { x: 5, y: 600 } });
+await p.keyboard.press('Digit2'); await p.waitForTimeout(300);
+ok(await p.locator('.lm-deckpanel.lm-deck-b').evaluate((e) => e.classList.contains('is-playing')), 'Clavier : « 2 » lance la platine B');
+await p.keyboard.press('Shift+Digit2'); await p.waitForTimeout(200);
+ok(!(await p.locator('.lm-deckpanel.lm-deck-b').evaluate((e) => e.classList.contains('is-playing'))), 'Clavier : « Maj+2 » ramène B au repère et l’arrête');
+const xf0 = await p.locator('.lm-xfader .lm-slider').first().getAttribute('aria-valuenow');
+await p.keyboard.press('ArrowRight'); await p.waitForTimeout(100);
+ok(Number(await p.locator('.lm-xfader .lm-slider').first().getAttribute('aria-valuenow')) > Number(xf0), 'Clavier : « → » pousse le crossfader A/B vers B');
+for (let i = 0; i < 5; i++) { await p.keyboard.press('KeyT'); await p.waitForTimeout(500); }
+const bpmB = await p.locator('.lm-deckpanel.lm-deck-b .lm-readout-end .lm-readout-xl').textContent();
+ok(Math.abs(Number(bpmB) - 120) < 6, 'BPM au tap : 5 frappes à 500 ms → ' + bpmB + ' BPM sur la platine active');
 ok(p.errs.length === 0, 'Console : aucune erreur' + (p.errs.length ? ' — ' + p.errs.join(' | ') : ''));
 
 // ---- Bibliothèque ----
