@@ -286,4 +286,4 @@ Sur le même cœur réseau que les essais (appairage par code, chiffrement, horl
 - **Écran** : la fenêtre de sortie (`output/Output.tsx`) prend ses messages du réseau au lieu de la console locale ; même suivi (position réelle, rattrapage doux), même préchargement ; perte de connexion signalée, reconnexion automatique, écran gardé allumé.
 - Vérifié dans le cloud avec doublures : 18 vérifications de plus (64) ; Android ajouté à la compilation automatique de l'application, avec la vérification des symboles C++.
 - À faire : essai réel Mac console + téléphone contrôleur + téléphone ou PC écran ; QR code d'appairage ; rôle Bibliothèque ; message `ready` des écrans (attendre les écrans avant de basculer, comme à l'essai 6).
-
+- **10 novembre, 4 h 23 UTC : première compilation complète réussie** (vérifications, Mac universel en 4 min 50, Windows en 5 min 20, Android 64 et 32 bits en 8 min 30, symboles C++ vérifiés).
