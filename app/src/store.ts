@@ -33,6 +33,8 @@ export interface Settings {
   transition: Transition;
   showTitleOnOutput: boolean;
   deviceName: string;
+  /** Rôle de cet ordinateur : console (défaut) ou appareil (écran, contrôleur). Android est toujours appareil. */
+  mode: 'console' | 'device';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -46,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
   transition: 'cut',
   showTitleOnOutput: false,
   deviceName: '',
+  mode: 'console',
 };
 
 export interface Track {

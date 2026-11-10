@@ -11,7 +11,7 @@ import './output.css';
 
 type Slot = 0 | 1;
 
-export function Output() {
+export function Output({ subscribe }: { subscribe?: (handler: (m: ProgramMessage) => void) => (() => void) | Promise<() => void> } = {}) {
   const hosts = useRef<(HTMLDivElement | null)[]>([null, null]);
   const players = useRef<(YtPlayer | null)[]>([null, null]);
   const followers = useRef<(Follower | null)[]>([null, null]);
@@ -35,7 +35,7 @@ export function Output() {
     }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') void call('close_output').catch(() => window.close()); };
     window.addEventListener('keydown', onKey);
-    const un = listen<ProgramMessage>('program', onProgram);
+    const un = Promise.resolve(subscribe ? subscribe(onProgram) : listen<ProgramMessage>('program', onProgram));
     return () => { window.removeEventListener('keydown', onKey); void un.then((f) => f()); };
   }, []);
 

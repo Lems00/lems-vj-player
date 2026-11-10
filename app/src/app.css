@@ -43,6 +43,29 @@
 .stage-player.is-parked { left: -10000px !important; top: 0 !important; visibility: hidden; }
 .stage-player iframe { display: block; border: 0; }
 
+/* ---- Appareil (vues 5 et 6) ---- */
+.device { min-height: 100%; display: flex; flex-direction: column; }
+.device-connect { display: flex; flex-direction: column; gap: var(--space-4); max-width: 560px; }
+.found-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 10px 0; border-top: 1px solid var(--line); }
+.found-row:first-of-type { border-top: 0; }
+.device-wait { padding: var(--space-6); text-align: center; }
+.controller-phone { display: flex; flex-direction: column; gap: var(--space-4); max-width: 560px; padding-left: var(--space-4); padding-right: var(--space-4); }
+.deck-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+.deck-tab { height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: var(--radius-sm); background: transparent; cursor: pointer; }
+.deck-tab.is-on { border-color: var(--lm-deck); background: var(--surface-raised); }
+.phone-mixer { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-6); padding: var(--space-4); background: var(--surface-raised); border-radius: var(--radius-md); align-items: end; }
+.phone-faders { display: flex; gap: var(--space-6); }
+.phone-fader { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+.phone-xf { display: flex; flex-direction: column; gap: var(--space-2); }
+.controller-wide .mixer .strips { justify-content: center; }
+.screen-role { position: fixed; inset: 0; background: #000; }
+.screen-hud { position: fixed; right: 16px; top: 16px; padding: 6px 10px; border-radius: var(--radius-sm); background: rgba(14, 15, 18, 0.8); color: var(--ink); font: 400 13px/18px var(--font-sans); opacity: 0; animation: hud-fade 6s ease forwards; }
+.screen-hud.is-lost { opacity: 1; animation: none; }
+@keyframes hud-fade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+.screen-leave { position: fixed; left: 16px; top: 16px; height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(14, 15, 18, 0.8); color: var(--ink-muted); font: 500 13px/18px var(--font-sans); opacity: 0.25; cursor: pointer; }
+.screen-leave:hover, .screen-leave:focus-visible { opacity: 1; }
+@media (max-width: 899px) { .lm-appbar { padding: 0 var(--space-4); } }
+
 /* ---- Bibliothèque (vue 2) ---- */
 .library { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--space-4); }
 .side { display: flex; flex-direction: column; gap: var(--space-4); }

@@ -105,8 +105,13 @@ export class Engine {
       onError: (_code, text) => this.patchDeck(d, { error: text, playing: false }),
     });
     this.players[d] = player;
+    // Lecteur recréé (retour du mode appareil) : la platine retrouve son morceau, arrêté où il était.
+    const deck = this.state.decks[d];
+    if (deck.track) { player.cue(deck.track.id, deck.position); this.patchDeck(d, { playing: false }); }
   }
   hasPlayer(d: DeckId) { return !!this.players[d]; }
+  /** Détruit les lecteurs (leur hôte quitte la page) ; la Scène les recréera au retour. */
+  detachPlayers() { for (const d of DECKS) { this.players[d]?.destroy(); delete this.players[d]; delete this.appliedVolume[d]; } }
 
   // ----- commandes de platine -----
   load(d: DeckId, track: Track) {

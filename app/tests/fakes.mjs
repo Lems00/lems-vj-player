@@ -38,7 +38,7 @@ export const FAKE_TAURI = `
   const listeners = {};
   window.__events = [];
   const H = {
-    platform_info: () => ({ os: 'macos', arch: 'aarch64', app_version: '0.1.0', localhost_port: 14870 }),
+    platform_info: () => ({ os: window.__platformOs || 'macos', arch: 'aarch64', app_version: '0.1.0', localhost_port: 14870 }),
     last_crash: () => null,
     store_get: (a) => store.get(a.key),
     store_set: (a) => { store.set(a.key, a.value); return null; },
@@ -46,8 +46,15 @@ export const FAKE_TAURI = `
     audio_inventory: () => [], audio_start: () => [], audio_stats: () => null, audio_stop: () => null,
     console_start: () => ({ port: 48700, code: '482913', peers: [], advertised: true, advertise_error: null, urls: ['ws://192.168.1.20:48700'] }),
     console_info: () => ({ port: 48700, code: '482913', peers: [{ id: 1, name: 'PC Salle', role: 'screen', addr: '192.168.1.31:51234', connected: true, rtt_ms: 4, offset_ms: -300 }], advertised: true, advertise_error: null, urls: ['ws://192.168.1.20:48700'] }),
-    console_new_code: () => '730155', console_broadcast: () => null, console_messages: () => [],
-    discover: () => [], device_connect: () => 'Console', device_status: () => null, device_messages: () => [], device_send: () => null, now_ms: () => Date.now(),
+    console_new_code: () => '730155',
+    console_broadcast: (a) => { (window.__broadcasts = window.__broadcasts || []).push(JSON.parse(a.message)); return null; },
+    console_messages: () => { const m = window.__consoleInbox || []; window.__consoleInbox = []; return m; },
+    discover: () => [{ name: 'MacBook Pro de Lems', addresses: ['192.168.1.20'], port: 48700, protocol: 1, url: 'ws://192.168.1.20:48700' }],
+    device_connect: (a) => { if (a.code !== '482913') throw new Error('Connexion impossible : code incorrect.'); window.__deviceConnect = a; window.__deviceConnected = true; return 'MacBook Pro de Lems'; },
+    device_status: () => ({ console: 'MacBook Pro de Lems', rtt_ms: 4, offset_ms: -300, samples: 32, connected: window.__deviceConnected !== false }),
+    device_messages: () => { const m = window.__deviceInbox || []; window.__deviceInbox = []; return m; },
+    device_send: (a) => { (window.__deviceSent = window.__deviceSent || []).push(JSON.parse(a.message)); return null; },
+    now_ms: () => Date.now(),
     list_monitors: () => [{ index: 0, name: 'Écran intégré', width: 2880, height: 1800, x: 0, y: 0, scale: 2, is_primary: true }, { index: 1, name: 'EPSON EB-L200F', width: 1920, height: 1080, x: 1440, y: 0, scale: 1, is_primary: false }],
     open_output: (a) => { window.__outputOpened = a; return { opened_ms: 120, on_requested_monitor: a.index === 1, fullscreen: a.fullscreen }; },
     close_output: () => { window.__outputClosed = true; return null; },
@@ -60,5 +67,7 @@ export const FAKE_TAURI = `
     },
   };
   window.__emit = (name, payload) => window.__TAURI__.event.emit(name, payload);
+  window.__pushDevice = (m) => (window.__deviceInbox = window.__deviceInbox || []).push(m);
+  window.__pushConsole = (m) => (window.__consoleInbox = window.__consoleInbox || []).push(m);
 })();
 `;

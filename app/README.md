@@ -32,7 +32,10 @@ app/
 - **Fenêtre de sortie** : plein écran sur l'écran choisi, deux lecteurs muets (le son vient de la console) : l'un suit la lecture réelle de la platine à l'antenne (méthode des essais 5 et 6), l'autre précharge la platine suivante pour une coupe franche sans attente. Échap la ferme.
 - **Sur Mac**, l'interface est servie en `http://localhost:14870` : YouTube refuse ses lecteurs en `tauri://` (essai 1).
 
-Pas encore : fichiers locaux (moteur son complet, casque séparé, fondus), contrôle à distance et écrans synchronisés sur d'autres appareils (étape 5), signature des applications (étape 6).
+- **Appareils reliés** (étape 5, première version) : la console s'annonce sur le Wi-Fi et accepte des appareils par code à 6 chiffres (échanges chiffrés, cœur `prototypes/core`). Sur **Android**, l'application démarre en mode appareil (vue 5a) : **Contrôleur** (vue 5b sur téléphone, vue 6 sur tablette : état des platines, lecture/pause/repère, volumes, crossfaders) ou **Écran** (vues 7b/7c : vidéo de la platine à l'antenne, suivie à la position réelle de la console, platine suivante préchargée, reconnexion automatique, écran gardé allumé). Un ordinateur peut aussi devenir appareil : Réglages → Appareils connectés.
+- Fichier Android : `application-android` dans la compilation automatique (clé de signature de test, publique : `src-tauri/essais-test.jks`).
+
+Pas encore : fichiers locaux (moteur son complet, casque séparé, fondus), rôle Bibliothèque à distance, QR code d'appairage, signature des applications (étape 6).
 
 ## Lancer sur sa machine
 
@@ -58,7 +61,7 @@ Compiler une application installable : `npm run app:build`. La compilation autom
 npm run build && npm test
 ```
 
-46 vérifications des trois vues et de la fenêtre de sortie, avec un faux lecteur YouTube et une fausse application : elles prouvent la logique des pages, pas le comportement du vrai YouTube. Côté Rust : `cargo check` dans `src-tauri/` (Windows : `--target x86_64-pc-windows-msvc`).
+64 vérifications des trois vues, de la fenêtre de sortie, du pont réseau et des rôles contrôleur et écran, avec un faux lecteur YouTube et une fausse application : elles prouvent la logique des pages, pas le comportement du vrai YouTube. Côté Rust : `cargo check` dans `src-tauri/` (Windows : `--target x86_64-pc-windows-msvc`).
 
 ## Clé YouTube
 

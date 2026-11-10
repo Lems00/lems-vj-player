@@ -274,3 +274,16 @@ Dossier `app/` (Tauri 2.12.3, React 19, Vite, TypeScript ; cœur Rust des essais
 - **Sortie** (vue 7a) : fenêtre sur l'écran choisi, deux lecteurs muets, suivi de la lecture réelle (follower des essais 5/6), préchargement de la platine suivante, coupe franche, titre optionnel, Échap.
 - Vérifié dans le cloud : TypeScript sans erreur, `cargo check` Windows, **46 vérifications des pages** avec doublures (voir `app/tests/`). Compilation automatique Mac + Windows : `.github/workflows/application.yml`.
 - À faire ensuite, sur appareils : vrai YouTube dans la console (Mac), fenêtre de sortie sur l'écran externe, puis raccourcis clavier, BPM au tap, et l'étape 5 (appareils distants) sur le même cœur réseau.
+
+## Étape 5 — appareils reliés (première version, 10 novembre 2026)
+
+Sur le même cœur réseau que les essais (appairage par code, chiffrement, horloge), dans la même application :
+
+- **Protocole** : deux messages de plus, `transport` (un contrôleur commande lecture, pause, bascule ou repère d'une platine) et `state` (l'état de la console : quatre platines, crossfaders, master, platine à l'antenne, heure), avec les existants `load`, `play`, `pause`, `position`, `cue`, `volume`, `crossfader`.
+- **Console** (`app/src/net.ts`, `NetConsole`) : démarrée à l'ouverture ; diffuse l'état deux fois par seconde, la position de la platine à l'antenne, le chargement et la lecture au changement de platine, le préchargement de la suivante ; applique les commandes reçues (volume, crossfader, transport). Le nombre d'appareils connectés s'affiche dans la barre.
+- **Appareil** (`views/Device.tsx`) : vue 5a (rôle, consoles trouvées, adresse, code à 6 chiffres, mémoire de la dernière console). Android démarre toujours en appareil ; un ordinateur peut le devenir (Réglages → Appareils connectés) et redevenir console.
+- **Contrôleur** (`views/Controller.tsx`) : téléphone (vue 5b : une platine à la fois, deux faders, crossfader) ou tablette et ordinateur (vue 6 : quatre platines, quatre tranches, deux crossfaders). Ce qu'on touche prime une seconde sur l'état renvoyé par la console.
+- **Écran** : la fenêtre de sortie (`output/Output.tsx`) prend ses messages du réseau au lieu de la console locale ; même suivi (position réelle, rattrapage doux), même préchargement ; perte de connexion signalée, reconnexion automatique, écran gardé allumé.
+- Vérifié dans le cloud avec doublures : 18 vérifications de plus (64) ; Android ajouté à la compilation automatique de l'application, avec la vérification des symboles C++.
+- À faire : essai réel Mac console + téléphone contrôleur + téléphone ou PC écran ; QR code d'appairage ; rôle Bibliothèque ; message `ready` des écrans (attendre les écrans avant de basculer, comme à l'essai 6).
+

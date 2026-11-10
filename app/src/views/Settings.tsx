@@ -134,6 +134,9 @@ export function Settings({ settings, onChange, library }: SettingsProps) {
             <Setting label="Nom de cette console" hint="Affiché aux appareils qui la cherchent">
               <L.TextField value={settings.deviceName} placeholder="Console Lems VJ Player" onChange={(v: string) => onChange({ deviceName: v })} aria-label="Nom de cette console" />
             </Setting>
+            <Setting label="Rôle de cet ordinateur" hint="Console (défaut), ou appareil relié à une autre console">
+              <L.Button size="sm" onClick={() => onChange({ mode: 'device' })}>Utiliser cet ordinateur comme écran ou contrôleur</L.Button>
+            </Setting>
             {!inApp() ? <L.Notice>Disponible dans l’application.</L.Notice> : netError ? <p className="error" role="alert">{netError}</p> : consoleInfo ? (<>
               <Setting label="Code d’appairage" hint="À saisir sur l’appareil ; change après trois erreurs">
                 <L.PairingCode code={consoleInfo.code} expiresIn={consoleInfo.urls.length ? 'Adresse : ' + consoleInfo.urls.join(' ou ') : 'Aucune adresse réseau : cet ordinateur est-il sur le Wi-Fi ?'} />

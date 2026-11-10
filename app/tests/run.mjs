@@ -28,7 +28,7 @@ let failed = 0;
 const ok = (c, m) => { console.log((c ? '✓ ' : '✗ ') + m); if (!c) { failed++; process.exitCode = 1; } };
 const browser = await chromium.launch();
 
-async function open(page, { app = true, yt = true } = {}) {
+async function open(page, { app = true, yt = true, android = false } = {}) {
   const p = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   p.errs = [];
   p.on('pageerror', (e) => p.errs.push(e.message));
@@ -37,6 +37,7 @@ async function open(page, { app = true, yt = true } = {}) {
   await p.route('**/oembed**', (r) => { const id = new URL(new URL(r.request().url()).searchParams.get('url')).searchParams.get('v'); r.fulfill({ contentType: 'application/json', body: JSON.stringify({ title: 'Lagune (Extended Mix)', author_name: 'Abidjan Sound System', thumbnail_url: 'https://i.ytimg.com/vi/' + id + '/default.jpg' }) }); });
   await p.route('**/youtube/v3/search**', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [{ id: { videoId: 'eRsGyueVLvQ' }, snippet: { title: 'Harmattan Nights', channelTitle: 'Kofi Mensah', thumbnails: {} } }, { id: { videoId: 'R6MlUcmOul8' }, snippet: { title: 'Sahel Express', channelTitle: 'Radio Dunes', thumbnails: {} } }] }) }));
   await p.route('**/youtube/v3/videos**', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [{ id: 'eRsGyueVLvQ', contentDetails: { duration: 'PT6M45S' } }, { id: 'R6MlUcmOul8', contentDetails: { duration: 'PT30M34S' } }] }) }));
+  if (android) await p.addInitScript(() => { window.__platformOs = 'android'; });
   if (app) await p.addInitScript(FAKE_TAURI);
   if (yt) await p.addInitScript(FAKE_YT);
   await p.goto(BASE + page);
@@ -116,6 +117,18 @@ await p.keyboard.press('Digit2'); await p.waitForTimeout(300);
 for (let i = 0; i < 5; i++) { await p.keyboard.press('KeyT'); await p.waitForTimeout(500); }
 const bpmB = await p.locator('.lm-deckpanel.lm-deck-b .lm-readout-end .lm-readout-xl').textContent();
 ok(Math.abs(Number(bpmB) - 120) < 6, 'BPM au tap : 5 frappes à 500 ms → ' + bpmB + ' BPM sur la platine active');
+// pont réseau : la console diffuse son état et ses commandes, et obéit aux contrôleurs
+await p.waitForTimeout(700);
+const bc = await p.evaluate(() => (window.__broadcasts || []).map((m) => m.type));
+ok(bc.includes('state') && bc.includes('load') && bc.includes('play'), 'Réseau : la console diffuse état, chargement et lecture aux appareils (' + [...new Set(bc)].join(', ') + ')');
+const snap = await p.evaluate(() => (window.__broadcasts || []).filter((m) => m.type === 'state').pop());
+ok(snap && snap.decks.length === 4 && snap.decks[1].title && snap.decks[1].playing === true && snap.decks[0].title === null, 'Réseau : l’état envoyé décrit les quatre platines (B : ' + (snap && snap.decks[1].title) + ', A vide)');
+const volBefore = await p.evaluate(() => window.__ytPlayers[1].vol);
+await p.evaluate(() => { window.__pushConsole({ type: 'volume', deck: 'b', value: 0.3, peer: 1 }); }); await p.waitForTimeout(400);
+const volAfter = await p.evaluate(() => window.__ytPlayers[1].vol);
+ok(volAfter > 0 && volAfter < volBefore, 'Réseau : un contrôleur règle le volume de B (' + volBefore + ' → ' + volAfter + ' %)');
+await p.evaluate(() => { window.__pushConsole({ type: 'transport', deck: 'b', action: 'pause', peer: 1 }); }); await p.waitForTimeout(300);
+ok(!(await p.locator('.lm-deckpanel.lm-deck-b').evaluate((e) => e.classList.contains('is-playing'))), 'Réseau : un contrôleur met B en pause');
 ok(p.errs.length === 0, 'Console : aucune erreur' + (p.errs.length ? ' — ' + p.errs.join(' | ') : ''));
 
 // ---- Bibliothèque ----
@@ -146,6 +159,54 @@ await p.click('.nav-item:has-text("YouTube")'); ok((await p.locator('.quota i.is
 await p.click('.nav-item:has-text("Appareils")'); await p.waitForTimeout(1300);
 ok((await p.locator('.lm-pairing-code').textContent()).replace(/\s/g, '') === '482913' && (await p.locator('.lm-device').count()) === 1, 'Réglages : code d’appairage et appareil connecté');
 ok(p.errs.length === 0, 'Réglages : aucune erreur' + (p.errs.length ? ' — ' + p.errs.join(' | ') : ''));
+
+// ---- Appareil Android : contrôleur ----
+p = await open('/index.html', { android: true });
+await p.setViewportSize({ width: 420, height: 900 });
+await p.waitForTimeout(400);
+ok((await p.locator('.device-connect').count()) === 1 && (await p.locator('.found-row b').textContent()) === 'MacBook Pro de Lems', 'Appareil : écran de connexion, console trouvée sur le Wi-Fi');
+await p.click('.found-row button');
+await p.locator('.lm-code-cell').first().focus(); await p.keyboard.type('482913');
+await p.click('button:has-text("Se connecter")'); await p.waitForTimeout(400);
+const dc = await p.evaluate(() => window.__deviceConnect);
+ok(dc && dc.url === 'ws://192.168.1.20:48700' && dc.code === '482913' && dc.role === 'controller', 'Appareil : connexion avec l’adresse choisie, le code et le rôle contrôleur');
+await p.evaluate(() => window.__pushDevice({ type: 'state', decks: [
+  { deck: 'a', title: 'Lagune (Extended Mix)', channel: 'Abidjan Sound System', video_id: 'aqz-KE-bpKQ', duration: 372, position: 83.4, playing: true, bpm: 124, volume: 0.8, on_air: true },
+  { deck: 'b', title: 'Harmattan Nights', channel: 'Kofi', video_id: 'eRsGyueVLvQ', duration: 405, position: 0, playing: false, bpm: null, volume: 0.6, on_air: false },
+  { deck: 'c', title: null, channel: null, video_id: null, duration: 0, position: 0, playing: false, bpm: null, volume: 0.75, on_air: false },
+  { deck: 'd', title: null, channel: null, video_id: null, duration: 0, position: 0, playing: false, bpm: null, volume: 0.75, on_air: false }],
+  ab: -0.6, cd: 0, master: 0.85, program: 'a', at: Date.now() }));
+await p.waitForTimeout(300);
+ok((await p.locator('.controller-phone .lm-deck-title').textContent()) === 'Lagune (Extended Mix)' && (await p.locator('.controller-phone .lm-deckpanel.is-playing').count()) === 1, 'Contrôleur : la platine A de la console s’affiche, en lecture');
+await p.locator('.phone-fader.lm-deck-b .lm-slider').focus(); await p.keyboard.press('End'); await p.waitForTimeout(100);
+await p.click('.controller-phone .lm-deck-transport button:nth-child(2)'); await p.waitForTimeout(100);
+const sent = await p.evaluate(() => window.__deviceSent || []);
+ok(sent.some((m) => m.type === 'volume' && m.deck === 'b' && m.value === 1) && sent.some((m) => m.type === 'transport' && m.deck === 'a' && m.action === 'pause'), 'Contrôleur : envoie le volume de B et la pause de A à la console');
+ok(p.errs.length === 0, 'Contrôleur : aucune erreur' + (p.errs.length ? ' — ' + p.errs.join(' | ') : ''));
+
+// ---- Appareil Android : écran ----
+p = await open('/index.html', { android: true });
+await p.click('.lm-seg-option:has-text("Écran")'); await p.click('.found-row button');
+await p.locator('.lm-code-cell').first().focus(); await p.keyboard.type('482913');
+await p.click('button:has-text("Se connecter")'); await p.waitForTimeout(400);
+ok((await p.locator('.screen-role').count()) === 1 && (await p.locator('[data-fake-yt]').count()) === 2, 'Écran : plein écran, deux lecteurs prêts');
+await p.evaluate(() => { window.__pushDevice({ type: 'load', deck: 'a', source: { kind: 'youtube', video_id: 'aqz-KE-bpKQ' } }); window.__pushDevice({ type: 'play', deck: 'a', position: 30, at: Date.now() - 300 }); });
+await p.waitForTimeout(400);
+ok((await p.locator('.output-player.is-shown').count()) === 1 && await p.evaluate(() => window.__ytPlayers.every((x) => x.muted)), 'Écran : la vidéo de la console s’affiche, muette (le son reste sur la console)');
+await p.evaluate(() => window.__pushDevice({ type: 'cue', deck: 'b', source: { kind: 'youtube', video_id: 'eRsGyueVLvQ' }, position: 0 })); await p.waitForTimeout(300);
+ok(await p.evaluate(() => window.__ytPlayers.some((x) => x.vid === 'eRsGyueVLvQ' && x.state === 5)), 'Écran : la platine suivante est préchargée');
+await p.evaluate(() => { window.__deviceConnected = false; }); await p.waitForTimeout(800);
+ok((await p.locator('.screen-hud.is-lost').count()) === 1, 'Écran : perte de connexion signalée, reconnexion automatique en cours');
+ok(p.errs.length === 0, 'Écran : aucune erreur' + (p.errs.length ? ' — ' + p.errs.join(' | ') : ''));
+
+// ---- Ordinateur en mode appareil, puis retour console ----
+p = await open('/index.html');
+await p.click('.lm-appbar-item:has-text("Réglages")'); await p.click('.nav-item:has-text("Appareils")');
+await p.click('button:has-text("Utiliser cet ordinateur comme écran ou contrôleur")'); await p.waitForTimeout(300);
+ok((await p.locator('.device-connect').count()) === 1, 'Ordinateur : peut devenir un appareil');
+await p.click('button:has-text("Redevenir console")'); await p.waitForTimeout(300); await p.click('.lm-appbar-item:has-text("Console")'); await p.waitForTimeout(300);
+ok((await p.locator('.lm-deckpanel').count()) === 4 && (await p.locator('[data-fake-yt]').count()) === 4, 'Ordinateur : redevient console, lecteurs recréés');
+ok(p.errs.length === 0, 'Mode appareil : aucune erreur' + (p.errs.length ? ' — ' + p.errs.join(' | ') : ''));
 
 // ---- Hors application (simple navigateur) ----
 p = await open('/index.html', { app: false });

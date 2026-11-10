@@ -73,6 +73,45 @@ pub enum Message {
     Cue { deck: Deck, source: Source, position: f64 },
     /// Réponse d'un appareil : la platine est préparée, en `load_ms` millisecondes.
     Ready { deck: Deck, video_id: String, load_ms: u32 },
+    /// Un contrôleur commande le transport d'une platine de la console.
+    Transport { deck: Deck, action: TransportAction },
+    /// L'état de la console, diffusé aux contrôleurs (deux fois par seconde).
+    State(ConsoleSnapshot),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TransportAction {
+    Play,
+    Pause,
+    Toggle,
+    Cue,
+}
+
+/// Ce qu'un contrôleur a besoin de voir d'une platine.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct DeckSnapshot {
+    pub deck: Deck,
+    pub title: Option<String>,
+    pub channel: Option<String>,
+    pub video_id: Option<String>,
+    pub duration: f64,
+    pub position: f64,
+    pub playing: bool,
+    pub bpm: Option<f64>,
+    pub volume: f32,
+    pub on_air: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ConsoleSnapshot {
+    pub decks: Vec<DeckSnapshot>,
+    pub ab: f32,
+    pub cd: f32,
+    pub master: f32,
+    pub program: Option<Deck>,
+    /// Heure de la console (ms) au moment de l'instantané.
+    pub at: i64,
 }
 
 impl Message {
@@ -99,6 +138,8 @@ mod tests {
             Message::Position { deck: Deck::A, position: 31.25, at: 1_700_000_001_000 },
             Message::Cue { deck: Deck::B, source: Source::Youtube { video_id: "eRsGyueVLvQ".into() }, position: 30.0 },
             Message::Ready { deck: Deck::B, video_id: "eRsGyueVLvQ".into(), load_ms: 1780 },
+            Message::Transport { deck: Deck::C, action: TransportAction::Toggle },
+            Message::State(ConsoleSnapshot { decks: vec![DeckSnapshot { deck: Deck::A, title: Some("Lagune".into()), channel: None, video_id: Some("aqz-KE-bpKQ".into()), duration: 372.0, position: 83.4, playing: true, bpm: Some(124.0), volume: 0.8, on_air: true }], ab: -0.6, cd: 0.0, master: 0.85, program: Some(Deck::A), at: 1_700_000_002_000 }),
         ];
         for m in msgs {
             let back = Message::from_json(&m.to_json()).unwrap();
