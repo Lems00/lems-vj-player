@@ -87,7 +87,7 @@ export function Console({ settings, library, onLibraryChange }: ConsoleProps) {
   function deckView(d: DeckId) {
     const dk = st.decks[d], t = dk.track;
     return (
-      <div key={d} className="deck-block" onPointerDownCapture={() => engine.focus(d)}>
+      <div key={d} className="deck-block" onPointerDownCapture={() => { engine.focus(d); if (t && d !== program) engine.showPreview(d); }}>
       <L.Deck deck={d} source="youtube" title={t?.title} artist={t ? (t.channel || 'YouTube') : undefined}
         duration={dk.duration} bpm={t?.bpm ?? null} keyName={t ? (t.bpm ? 'YouTube · BPM au tap' : 'YouTube · tempo fixe') : null}
         position={dk.position} cuePoint={dk.cuePoint} playing={dk.playing} peaks={FLAT_PEAKS}
@@ -97,6 +97,7 @@ export function Console({ settings, library, onLibraryChange }: ConsoleProps) {
       <div className="deck-tools">
         <button type="button" className={'tapbtn lm-deck-' + d} disabled={!t} aria-label={'BPM au tap, platine ' + d.toUpperCase()} title="Frappez en rythme, 4 fois au moins (ou touche T)" onClick={() => tap(d)}>TAP BPM</button>
         {t?.bpm ? <button type="button" className="tapbtn" aria-label="Effacer le BPM" onClick={() => { taps.current[d] = []; engine.setBpm(d, undefined); }}>Effacer</button> : null}
+        {dk.error ? <span className="deck-error" role="alert">YouTube : {dk.error}</span> : null}
         {engine.focused === d ? <span className="deck-focus" aria-label="Platine commandée au clavier">clavier</span> : null}
       </div>
       </div>

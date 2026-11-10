@@ -106,6 +106,13 @@ ok(!(await p.locator('.lm-deckpanel.lm-deck-b').evaluate((e) => e.classList.cont
 const xf0 = await p.locator('.lm-xfader .lm-slider').first().getAttribute('aria-valuenow');
 await p.keyboard.press('ArrowRight'); await p.waitForTimeout(100);
 ok(Number(await p.locator('.lm-xfader .lm-slider').first().getAttribute('aria-valuenow')) > Number(xf0), 'Clavier : « → » pousse le crossfader A/B vers B');
+// toucher la platine A (à l'antenne) la met au clavier ; toucher C la met en prévisualisation gauche
+await p.locator('.lm-deckpanel.lm-deck-a .lm-deck-title').click(); await p.waitForTimeout(100);
+ok((await p.locator('.deck-block:has(.lm-deck-a) .deck-focus').count()) === 1, 'Console : toucher une platine la met au clavier');
+// erreur YouTube affichée sous la platine (vidéo refusée par son auteur)
+await p.evaluate(() => { const pl = window.__ytPlayers[1]; pl.o.events.onError({ data: 150 }); }); await p.waitForTimeout(150);
+ok((await p.locator('.deck-block:has(.lm-deck-b) .deck-error').textContent()).includes('refusée'), 'Console : une erreur YouTube s’affiche sous la platine');
+await p.keyboard.press('Digit2'); await p.waitForTimeout(300);
 for (let i = 0; i < 5; i++) { await p.keyboard.press('KeyT'); await p.waitForTimeout(500); }
 const bpmB = await p.locator('.lm-deckpanel.lm-deck-b .lm-readout-end .lm-readout-xl').textContent();
 ok(Math.abs(Number(bpmB) - 120) < 6, 'BPM au tap : 5 frappes à 500 ms → ' + bpmB + ' BPM sur la platine active');

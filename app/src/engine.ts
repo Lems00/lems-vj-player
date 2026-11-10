@@ -117,7 +117,7 @@ export class Engine {
     this.showPreview(d);
   }
   eject(d: DeckId) { this.players[d]?.stop(); this.patchDeck(d, emptyDeck()); }
-  play(d: DeckId) { if (!this.state.decks[d].track) return; this.focused = d; this.patchDeck(d, { playing: true }); this.players[d]?.play(); }
+  play(d: DeckId) { if (!this.state.decks[d].track) return; this.focus(d); this.patchDeck(d, { playing: true }); this.players[d]?.play(); }
   pause(d: DeckId) { this.patchDeck(d, { playing: false }); this.players[d]?.pause(); }
   toggle(d: DeckId) { this.state.decks[d].playing ? this.pause(d) : this.play(d); }
   /** CUE : en lecture, revient au repère et s'arrête ; à l'arrêt, pose le repère ici. */
@@ -139,7 +139,7 @@ export class Engine {
   }
   /** La platine que le clavier commande : la dernière touchée, sinon celle à l'antenne. */
   focused: DeckId | null = null;
-  focus(d: DeckId) { this.focused = d; }
+  focus(d: DeckId) { if (this.focused !== d) { this.focused = d; this.set({ ...this.state }); } }
 
   // ----- mixeur -----
   setStrip(d: DeckId, v: StripValue) {
